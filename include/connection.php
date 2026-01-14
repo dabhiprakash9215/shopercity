@@ -6,12 +6,12 @@ if (!isset($_SESSION)) {
 $local_hostname = "localhost";
 $server = $_SERVER['SERVER_NAME'];
 $hostname = "localhost";
-$username = "u740713800_user";
-$password = "nCq53z~4";
-$db = "u740713800_db";
-// $username = "root";
-// $password = "";
-// $db = "shopercity";
+// $username = "u740713800_user";
+// $password = "nCq53z~4";
+// $db = "u740713800_db";
+$username = "root";
+$password = "";
+$db = "shopercity";
 
 // Create connection
 $conn = '';
