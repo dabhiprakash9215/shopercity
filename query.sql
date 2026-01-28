@@ -6,3 +6,7 @@ ALTER TABLE `vendor` CHANGE `status` `status` INT(10) NULL DEFAULT '0' COMMENT '
 ALTER TABLE `vendor` ADD `reason` TEXT NULL DEFAULT NULL AFTER `status`;
 ALTER TABLE `vendor` CHANGE `city_id` `city_id` VARCHAR(255) NULL DEFAULT NULL;
 done
+
+
+24-01-2026
+ALTER TABLE `commission_settings` ADD `plan_price` INT NOT NULL AFTER `admin_commission`;

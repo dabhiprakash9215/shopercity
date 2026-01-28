@@ -80,6 +80,7 @@
                                                 <th>Total User</th>
                                                 <th>Price</th>
                                                 <th>Status</th>
+                                                <th>Action</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -97,10 +98,7 @@
                                                         <td>
                                                             <?php
                                                             if ($row['status'] == 0) {
-                                                                echo '<form action="pay.php" method="post">
-                                                                        <input type="hidden" name="notification_id" value="' . $row['id'] . '">
-                                                                        <button type="submit" class="btn btn-info">Pay Now</button>
-                                                                    </form>';
+                                                                echo "<span class='badge text-bg-warning'>Pending</span>";
                                                             } else if ($row['status'] == 1) {
                                                                 echo "<span class='badge text-bg-info'>In Progress</span>";
                                                             } else if ($row['status'] == 2) {
@@ -108,6 +106,12 @@
                                                             }
 
                                                             ?>
+                                                        </td>
+                                                        <td>
+                                                            <form action="pay.php" method="get">
+
+                                                                <button type="submit">Pay Now</button>
+                                                            </form>
                                                         </td>
                                                     </tr>
                                                 <?php
