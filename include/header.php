@@ -19,7 +19,8 @@ if (isset($_POST['search'])) {
             </div>
             <div class="header-right">
                 <span class="divider"></span>
-                <a href="contact-us.php" class="contact d-lg-show"><i class="d-icon-map"></i>Contact</a>
+                <a href="javascript:void(0);" class="d-lg-show" id="select-location"><i class="d-icon-map"></i></a>
+                <a href="contact-us.php" class="contact d-lg-show"><i class="d-icon-phone"></i>Contact</a>
                 <a href="javascript:void(0)" class="help d-lg-show"><i class="d-icon-info"></i> Need Help</a>
                 <?php
                 if (isset($_SESSION)) {
