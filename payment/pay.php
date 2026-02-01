@@ -6,7 +6,7 @@ $mobile = $_SESSION['mobile'];
 $user_id = $_SESSION['user_id'];
 $order_id = "M-" . uniqid();
 $name = "SHOPERCITY INFO SERVICE";
-$amount = 2000; // amount in INR
+$amount = 100; // amount in INR
 $description = 'Payment for Product/Service';
 
 require_once "./utils/config.php";
@@ -62,9 +62,9 @@ if (mysqli_query($conn, $sql)) {
   // print_r($response);
   $res = json_decode($response);
   $err = curl_error($curl);
-  
+
   curl_close($curl);
-  if($res->code == "BLOCKED_MERCHANT") {
+  if ($res->code == "BLOCKED_MERCHANT") {
     $_SESSION['error_msg'] = $res->message;
     header('Location: ../plan.php');
   }
