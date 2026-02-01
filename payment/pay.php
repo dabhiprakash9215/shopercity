@@ -6,7 +6,7 @@ $mobile = $_SESSION['mobile'];
 $user_id = $_SESSION['user_id'];
 $order_id = "M-" . uniqid();
 $name = "SHOPERCITY INFO SERVICE";
-$amount = 100; // amount in INR
+$amount = 1200; // amount in INR
 $description = 'Payment for Product/Service';
 
 require_once "./utils/config.php";

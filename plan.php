@@ -204,7 +204,7 @@
                                             <!-- <h6>Earn Rewards Get Income.</h6> -->
                                             <h6>Get full Marketing Support from us.</h6>
                                             <h6>Start strong! Easily manage up to 10 stores under one account—perfect for growing businesses.</h6>
-                                            <h4>Rs. 800</h4>
+                                            <h4>Rs. 1200</h4>
                                             <?php
                                             if (!empty($_SESSION['is_active']) && $_SESSION['is_active'] == 1) {
                                                 $_SESSION['error_msg'] = "You Plan Is Alrady Purchase";
