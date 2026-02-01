@@ -1,302 +1,425 @@
 <?php
-session_start(); // Start the session if not already started
+session_start();
 require_once "../db/connection.php";
 
-if (isset($_POST['code']) && $_POST['code'] == "PAYMENT_SUCCESS") {
-    $order_id = mysqli_real_escape_string($conn, $_POST['transactionId']);
-    $total_payment = 150; // Get amount from POST and convert to actual currency
+// Set content type early
+header('Content-Type: text/html; charset=utf-8');
 
-    // Use prepared statements for security and efficiency
-    $qry_order = "SELECT id, transaction_id, user_id FROM pay_transaction WHERE transaction_id = ?";
-    $stmt_order = mysqli_prepare($conn, $qry_order);
-    mysqli_stmt_bind_param($stmt_order, "s", $order_id);
-    mysqli_stmt_execute($stmt_order);
-    $res_order = mysqli_stmt_get_result($stmt_order);
-    $rows_orders = mysqli_fetch_assoc($res_order); // Use fetch_assoc for easier access by column name
+// Enable error reporting for development (disable in production)
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
 
-    if ($rows_orders) {
-        $row_transaction_id = $rows_orders['transaction_id'];
-        $user_id = $rows_orders['user_id'];
-        $transaction_amount = 150; // Get the original transaction amount
-        $query = "SELECT * FROM commission_settings WHERE is_active = 1 LIMIT 1";
-        $result = mysqli_query($conn, $query);
-        $commission = mysqli_fetch_assoc($result);
-        if ($commission['plan_price']) {
-            $transaction_amount = $commission['plan_price'];
-        }
-        if ($order_id == $row_transaction_id) {
-            $sel_admin_qry = "SELECT * FROM users WHERE id = ?";
-            $stmt_admin = mysqli_prepare($conn, $sel_admin_qry);
-            mysqli_stmt_bind_param($stmt_admin, "i", $user_id);
-            mysqli_stmt_execute($stmt_admin);
-            $sel_admin = mysqli_stmt_get_result($stmt_admin);
-            $fetch_row = mysqli_fetch_assoc($sel_admin);
+// Define constants
+define('PAYMENT_SUCCESS_CODE', 'PAYMENT_SUCCESS');
+define('TRANSACTION_SUCCESS_STATUS', 1);
+define('USER_ACTIVE_STATUS', 1);
 
-            if ($fetch_row) {
-                $_SESSION['user_id'] = $fetch_row['id'];
-                $_SESSION['first_name'] = $fetch_row['first_name'];
-                $_SESSION['last_name'] = $fetch_row['last_name'];
-                $_SESSION['email'] = $fetch_row['email'];
-                $_SESSION['mobile'] = $fetch_row['mobile'];
-                $_SESSION['address'] = $fetch_row['address'] ?? "";
-                $_SESSION['city'] = $fetch_row['city'] ?? "";
-                $_SESSION['state'] = $fetch_row['state'] ?? "";
-                $_SESSION['country'] = $fetch_row['country'] ?? "";
-                $_SESSION['old_img'] = $fetch_row['image'] ?? "";
-                $_SESSION['pincode'] = $fetch_row['pincode'] ?? "";
-                $_SESSION['referral_id'] = $fetch_row['referral_id'] ?? "";
-                $_SESSION['aadhar_number'] = $fetch_row['aadhar_number'] ?? "";
-                $_SESSION['is_active'] = 1; // Mark user as active
+// Function to log errors
+function logError($message, $conn = null)
+{
+    $logMessage = date('[Y-m-d H:i:s]') . " - " . $message . PHP_EOL;
+    error_log($logMessage, 3, __DIR__ . '/../logs/payment_errors.log');
 
-                // Update pay_transaction status to 1 (successful)
-                $upd_ord_qry = "UPDATE pay_transaction SET status = 1 WHERE transaction_id = ?";
-                $stmt_upd_ord = mysqli_prepare($conn, $upd_ord_qry);
-                mysqli_stmt_bind_param($stmt_upd_ord, "s", $order_id);
-                mysqli_stmt_execute($stmt_upd_ord);
-
-                // Update user's is_active status
-                $upd_user_active_qry = "UPDATE users SET is_active = 1 WHERE id = ?";
-                $stmt_upd_user_active = mysqli_prepare($conn, $upd_user_active_qry);
-                mysqli_stmt_bind_param($stmt_upd_user_active, "i", $user_id);
-                mysqli_stmt_execute($stmt_upd_user_active);
-
-                $created_at = date("Y-m-d H:i:s");
-
-                // Define commission percentages for each level
-                $level1_percentage = '0.' . $commission['level_1']; // 25% for direct upline
-                $level2_percentage = ' 0.' . $commission['level_2']; // 10% for second level upline
-                $level3_percentage = '0.' . $commission['level_3']; // 10% for third level upline
-
-                // // Calculate commission amounts based on the actual transaction amount
-                $level1_commission = $transaction_amount * $level1_percentage;
-                $level2_commission = $transaction_amount * $level2_percentage;
-                $level3_commission = $transaction_amount * $level3_percentage;
-
-                // Insert transaction for the purchasing user (initial payment)
-                $sql = "INSERT INTO transaction (order_id, user_id, balance, created_at) VALUES (?, ?, ?, ?)";
-                $stmt_insert_user_trans = mysqli_prepare($conn, $sql);
-                mysqli_stmt_bind_param($stmt_insert_user_trans, "sids", $order_id, $user_id, $transaction_amount, $created_at);
-
-                if (mysqli_stmt_execute($stmt_insert_user_trans)) {
-                    // Get user's direct upline (level 1)
-                    $qry1 = "SELECT upline_id FROM users WHERE id = ?";
-                    $stmt_upline1 = mysqli_prepare($conn, $qry1);
-                    mysqli_stmt_bind_param($stmt_upline1, "i", $user_id);
-                    mysqli_stmt_execute($stmt_upline1);
-                    $res1 = mysqli_stmt_get_result($stmt_upline1);
-                    $rows1 = mysqli_fetch_assoc($res1);
-                    $first_level_upline_id = $rows1['upline_id'] ?? null;
-
-                    if ($first_level_upline_id) {
-                        // Update direct upline's balance with level 1 commission
-                        $update_balance_sql1 = "UPDATE users SET balance = balance + ? WHERE id = ?";
-                        $stmt_update_balance1 = mysqli_prepare($conn, $update_balance_sql1);
-                        mysqli_stmt_bind_param($stmt_update_balance1, "di", $level1_commission, $first_level_upline_id);
-                        mysqli_stmt_execute($stmt_update_balance1);
-
-                        // Insert transaction for level 1 upline
-                        $qry_insert_trans1 = "INSERT INTO transaction (order_id, user_id, balance, created_at) VALUES (?, ?, ?, ?)";
-                        $stmt_insert_trans1 = mysqli_prepare($conn, $qry_insert_trans1);
-                        mysqli_stmt_bind_param($stmt_insert_trans1, "sids", $order_id, $first_level_upline_id, $level1_commission, $created_at);
-                        mysqli_stmt_execute($stmt_insert_trans1);
-
-                        // Get level 2 upline (upline of the direct upline)
-                        $qry2 = "SELECT upline_id FROM users WHERE id = ?";
-                        $stmt_upline2 = mysqli_prepare($conn, $qry2);
-                        mysqli_stmt_bind_param($stmt_upline2, "i", $first_level_upline_id);
-                        mysqli_stmt_execute($stmt_upline2);
-                        $res2 = mysqli_stmt_get_result($stmt_upline2);
-                        $rows2 = mysqli_fetch_assoc($res2);
-                        $second_level_upline_id = $rows2['upline_id'] ?? null;
-
-                        if ($second_level_upline_id) {
-                            // Update level 2 upline's balance with level 2 commission
-                            $update_balance_sql2 = "UPDATE users SET balance = balance + ? WHERE id = ?";
-                            $stmt_update_balance2 = mysqli_prepare($conn, $update_balance_sql2);
-                            mysqli_stmt_bind_param($stmt_update_balance2, "di", $level2_commission, $second_level_upline_id);
-                            mysqli_stmt_execute($stmt_update_balance2);
-
-                            // Insert transaction for level 2 upline
-                            $qry_insert_trans2 = "INSERT INTO transaction (order_id, user_id, balance, created_at) VALUES (?, ?, ?, ?)";
-                            $stmt_insert_trans2 = mysqli_prepare($conn, $qry_insert_trans2);
-                            mysqli_stmt_bind_param($stmt_insert_trans2, "sids", $order_id, $second_level_upline_id, $level2_commission, $created_at);
-                            mysqli_stmt_execute($stmt_insert_trans2);
-
-                            // Get level 3 upline (upline of the second level upline)
-                            $qry3 = "SELECT upline_id FROM users WHERE id = ?";
-                            $stmt_upline3 = mysqli_prepare($conn, $qry3);
-                            mysqli_stmt_bind_param($stmt_upline3, "i", $second_level_upline_id);
-                            mysqli_stmt_execute($stmt_upline3);
-                            $res3 = mysqli_stmt_get_result($stmt_upline3);
-                            $rows3 = mysqli_fetch_assoc($res3);
-                            $third_level_upline_id = $rows3['upline_id'] ?? null;
-
-                            if ($third_level_upline_id) {
-                                // Update level 3 upline's balance with level 3 commission
-                                $update_balance_sql3 = "UPDATE users SET balance = balance + ? WHERE id = ?";
-                                $stmt_update_balance3 = mysqli_prepare($conn, $update_balance_sql3);
-                                mysqli_stmt_bind_param($stmt_update_balance3, "di", $level3_commission, $third_level_upline_id);
-                                mysqli_stmt_execute($stmt_update_balance3);
-
-                                // Insert transaction for level 3 upline
-                                $qry_insert_trans3 = "INSERT INTO transaction (order_id, user_id, balance, created_at) VALUES (?, ?, ?, ?)";
-                                $stmt_insert_trans3 = mysqli_prepare($conn, $qry_insert_trans3);
-                                mysqli_stmt_bind_param($stmt_insert_trans3, "sids", $order_id, $third_level_upline_id, $level3_commission, $created_at);
-                                mysqli_stmt_execute($stmt_insert_trans3);
-                            }
-                        }
-                    }
-                }
-
-                // Email sending logic
-                $now = new DateTime();
-                $timestring = $now->format('F j, Y');
-
-                $msg = '<!DOCTYPE html>
-                <html lang="en">
-                <head>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>Your Shopercity Purchase Receipt</title>
-                </head>
-                <body style="margin: 0; padding: 0; background-color: #f7f5f2; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, \'Helvetica Neue\', Arial, sans-serif;">
-                    <span style="display:none; font-size:1px; color:#ffffff; line-height:1px; max-height:0px; max-width:0px; opacity:0; overflow:hidden;">
-                        Thank you for your purchase! Here are your plan details and how to start earning.
-                    </span>
-                
-                    <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                        <tr>
-                            <td align="center">
-                                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px;">
-                                    <tr>
-                                        <td align="center" bgcolor="#ffde00" style="padding: 20px 0;">
-                                            <img src="https://shopercity.com/assets/images/logo.png" alt="Shopercity Logo" width="100" style="display: block; border: 0;">
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td bgcolor="#ffffff" style="padding: 30px 30px 20px 30px;">
-                                            <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                                                <tr>
-                                                    <td>
-                                                        <h1 style="font-size: 24px; color: #333333; margin: 0; font-weight: 600;">
-                                                            <span style="color: #e73168; vertical-align: middle;">♥</span> Thanks for your purchase!
-                                                        </h1>
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td style="padding: 20px 0;">
-                                                        <p style="font-size: 16px; color: #555555; line-height: 1.6em; margin: 0 0 15px 0;">
-                                                            Hi ' . htmlspecialchars($fetch_row['first_name'] . ' ' . $fetch_row['last_name']) . ',
-                                                        </p>
-                                                        <p style="font-size: 16px; color: #555555; line-height: 1.6em; margin: 0;">
-                                                            Thank you for purchasing our <strong style="color: #000000;">₹' . number_format($transaction_amount) . ' plan!</strong> We\'re thrilled to have you on board and are excited to help you unlock new opportunities for your business.
-                                                        </p>
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td style="padding: 15px 0;">
-                                                        <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                                                            <tr>
-                                                                <td width="50%" valign="top">
-                                                                    <p style="font-size: 14px; color: #333333; margin: 0; font-weight: bold;">Billed to:</p>
-                                                                    <p style="font-size: 14px; color: #555555; margin: 5px 0 0 0;">' .  htmlspecialchars($fetch_row['first_name'] . ' ' . $fetch_row['last_name'])  . '</p>
-                                                                </td>
-                                                                <td width="50%" valign="top">
-                                                                     <p style="font-size: 14px; color: #333333; margin: 0; font-weight: bold;">Order details:</p>
-                                                                     <p style="font-size: 14px; color: #555555; margin: 5px 0 0 0;">Transaction ID: ' . htmlspecialchars($order_id) . '</p>
-                                                                     <p style="font-size: 14px; color: #555555; margin: 5px 0 0 0;">Date: ' . htmlspecialchars($timestring) . '</p>
-                                                                </td>
-                                                            </tr>
-                                                        </table>
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td style="padding-top: 20px;">
-                                                        <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                                                            <tr style="border-top: 1px solid #eeeeee; border-bottom: 1px solid #eeeeee;">
-                                                                <td style="padding: 12px 0; font-size: 15px; color: #555555;">Plan Benefits Unlocked</td>
-                                                                <td align="right" style="padding: 12px 0; font-size: 15px; color: #555555;"></td>
-                                                            </tr>
-                                                            <tr style="border-bottom: 1px solid #eeeeee;">
-                                                                 <td colspan="2" style="padding: 12px 0 12px 15px; font-size: 14px; color: #555555; line-height: 1.6;">
-                                                                    - Access All Features<br>
-                                                                    - Unlimited Use for 2 Years<br>
-                                                                    - Manage 10 Stores<br>
-                                                                    - Referral & Agency Code<br>
-                                                                    - Full Marketing Support
-                                                                 </td>
-                                                            </tr>
-                                                            <tr>
-                                                                <td style="padding: 15px 0; font-size: 16px; color: #333333; font-weight: bold;">Total Paid</td>
-                                                                <td align="right" style="padding: 15px 0; font-size: 16px; color: #333333; font-weight: bold;">₹' . number_format($transaction_amount) . '</td>
-                                                            </tr>
-                                                        </table>
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td style="padding: 20px 0;">
-                                                        <p style="font-size: 15px; color: #555555; line-height: 1.6em; margin: 0;">
-                                                            You can access your account and dashboard by logging in. <br><a href="https://shopercity.com" target="_blank" style="color: #007BFF; text-decoration: underline;">Go to Your Dashboard</a>.
-                                                        </p>
-                                                    </td>
-                                                </tr>
-                                            </table>
-                                        </td>
-                                    </tr>
-                                    <tr><td height="20" style="font-size: 20px; line-height: 20px;">&nbsp;</td></tr>
-                                    <tr>
-                                        <td bgcolor="#f5f4f9" style="padding: 30px;">
-                                            <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                                                <tr><td align="center">
-                                                    <h2 style="font-size: 18px; color: #333333; margin: 0 0 10px 0; font-weight: 600;">Earn With Shopercity</h2>
-                                                </td></tr>
-                                                <tr><td align="center">
-                                                    <p style="font-size: 15px; color: #555555; line-height: 1.6em; margin: 0 0 20px 0; max-width: 450px;">
-                                                        Become a partner, share your unique Agency Code, and earn unlimited bonuses when your referrals subscribe. It’s that simple!
-                                                    </p>
-                                                </td></tr>
-                                                <tr><td align="center">
-                                                    <table border="0" cellspacing="0" cellpadding="0"><tr><td align="center" style="border-radius: 6px;" bgcolor="#28a745">
-                                                        <a href="https://www.shopercity.com" target="_blank" style="font-size: 15px; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, \'Helvetica Neue\', Arial, sans-serif; color: #ffffff; text-decoration: none; border-radius: 6px; padding: 12px 25px; border: 1px solid #28a745; display: inline-block; font-weight: bold;">
-                                                            Learn How It Works
-                                                        </a>
-                                                    </td></tr></table>
-                                                </td></tr>
-                                            </table>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td bgcolor="#ffde00" align="center" style="padding: 12px 20px; font-size: 14px; color: #333333;">
-                                            If you have questions, feel free to <a href="https://shopercity.com/contact-us.php" style="color: #999999; text-decoration: underline;">contact us</a>.
-                                        </td>
-                                    </tr>
-                                     <tr>
-                                        <td bgcolor="#4a4a4a" align="center" style="padding: 12px 20px; font-size: 14px;">
-                                           <a href="https://www.shopercity.com" style="color: #ffffff; text-decoration: underline;">Subscribe to the Shopercity newsletter</a>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                         <td align="center" style="padding: 20px 20px; font-size: 12px; color: #999999; line-height: 1.5;">
-                                         </td>
-                                    </tr>
-                                </table>
-                            </td>
-                        </tr>
-                    </table>
-                </body>
-                </html>';
-
-                // Set appropriate headers for HTML email
-                $headers = "MIME-Version: 1.0" . "\r\n";
-                $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
-                $headers .= "From: Shopercity <noreply@shopercity.com>" . "\r\n"; // Sender's email address
-
-                // Send email
-                mail($fetch_row['email'], "Your Shopercity Purchase Receipt", $msg, $headers);
-            }
-        }
+    if ($conn) {
+        $errorMsg = mysqli_real_escape_string($conn, $message);
+        $query = "INSERT INTO error_logs (message, created_at) VALUES ('$errorMsg', NOW())";
+        @mysqli_query($conn, $query);
     }
 }
+
+// Main payment processing
+try {
+    // Validate required parameters
+    if (!isset($_GET['code']) || !isset($_GET['transactionId'])) {
+        throw new Exception("Missing required parameters");
+    }
+
+    $payment_code = trim($_GET['code']);
+    $transaction_id = trim($_GET['transactionId']);
+
+    if (!preg_match('/^[A-Z0-9_-]+$/i', $transaction_id)) {
+        throw new Exception("Invalid transaction ID format");
+    }
+
+    if ($payment_code === PAYMENT_SUCCESS_CODE) {
+        // Start database transaction
+        mysqli_begin_transaction($conn);
+
+        try {
+            // 1. Get payment transaction details with proper locking
+            $qry_order = "SELECT id, user_id FROM pay_transaction WHERE transaction_id = ? AND status = 0 FOR UPDATE";
+            $stmt_order = mysqli_prepare($conn, $qry_order);
+
+            if (!$stmt_order) {
+                throw new Exception("Database query preparation failed: " . mysqli_error($conn));
+            }
+
+            mysqli_stmt_bind_param($stmt_order, "s", $transaction_id);
+
+            if (!mysqli_stmt_execute($stmt_order)) {
+                throw new Exception("Failed to execute query: " . mysqli_stmt_error($stmt_order));
+            }
+
+            $res_order = mysqli_stmt_get_result($stmt_order);
+            $transaction = mysqli_fetch_assoc($res_order);
+            mysqli_stmt_close($stmt_order);
+
+            if (!$transaction) {
+                throw new Exception("Transaction not found or already processed: " . $transaction_id);
+            }
+
+            $user_id = (int)$transaction['user_id'];
+
+            // 2. Get commission settings
+            $query = "SELECT plan_price, level1_commission, level2_commission, level3_commission 
+                     FROM commission_settings WHERE is_active = 1 LIMIT 1";
+            $result = mysqli_query($conn, $query);
+
+            if (!$result) {
+                throw new Exception("Failed to fetch commission settings: " . mysqli_error($conn));
+            }
+
+            $commission = mysqli_fetch_assoc($result);
+
+            if (!$commission) {
+                throw new Exception("Commission settings not found");
+            }
+
+            // Get plan price
+            $transaction_amount = 1200.00; // Default amount
+            if (!empty($commission['plan_price']) && is_numeric($commission['plan_price'])) {
+                $transaction_amount = (float)$commission['plan_price'];
+            }
+
+            // 3. Get user details with FOR UPDATE to lock the row
+            $sel_user_qry = "SELECT * FROM users WHERE id = ? FOR UPDATE";
+            $stmt_user = mysqli_prepare($conn, $sel_user_qry);
+            mysqli_stmt_bind_param($stmt_user, "i", $user_id);
+            mysqli_stmt_execute($stmt_user);
+            $user_result = mysqli_stmt_get_result($stmt_user);
+            $user = mysqli_fetch_assoc($user_result);
+            mysqli_stmt_close($stmt_user);
+
+            if (!$user) {
+                throw new Exception("User not found: " . $user_id);
+            }
+
+            // 4. Update session data
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['first_name'] = $user['first_name'];
+            $_SESSION['last_name'] = $user['last_name'];
+            $_SESSION['email'] = $user['email'];
+            $_SESSION['mobile'] = $user['mobile'];
+            $_SESSION['address'] = $user['address'] ?? "";
+            $_SESSION['city'] = $user['city'] ?? "";
+            $_SESSION['state'] = $user['state'] ?? "";
+            $_SESSION['country'] = $user['country'] ?? "";
+            $_SESSION['old_img'] = $user['image'] ?? "";
+            $_SESSION['pincode'] = $user['pincode'] ?? "";
+            $_SESSION['referral_id'] = $user['referral_id'] ?? "";
+            $_SESSION['aadhar_number'] = $user['aadhar_number'] ?? "";
+            $_SESSION['is_active'] = USER_ACTIVE_STATUS;
+            $_SESSION['balance'] = $user['balance']; // Add balance to session
+
+            // 5. Update payment transaction status
+            $upd_ord_qry = "UPDATE pay_transaction SET status = 1, updated_at = NOW() 
+                           WHERE transaction_id = ? AND status = 0";
+            $stmt_upd_ord = mysqli_prepare($conn, $upd_ord_qry);
+            mysqli_stmt_bind_param($stmt_upd_ord, "s", $transaction_id);
+
+            if (!mysqli_stmt_execute($stmt_upd_ord)) {
+                throw new Exception("Failed to update transaction status");
+            }
+
+            if (mysqli_stmt_affected_rows($stmt_upd_ord) === 0) {
+                throw new Exception("Transaction already processed or not found");
+            }
+            mysqli_stmt_close($stmt_upd_ord);
+
+            // 6. Update user active status AND INITIAL BALANCE
+            // First, add the plan amount to user's balance as initial credit
+            $upd_user_qry = "UPDATE users SET is_active = 1, 
+                            balance = balance + ?, 
+                            updated_at = NOW() 
+                            WHERE id = ?";
+            $stmt_upd_user = mysqli_prepare($conn, $upd_user_qry);
+            $initial_balance = $transaction_amount; // Add plan amount to user's balance
+            mysqli_stmt_bind_param($stmt_upd_user, "di", $initial_balance, $user_id);
+
+            if (!mysqli_stmt_execute($stmt_upd_user)) {
+                throw new Exception("Failed to update user status and balance");
+            }
+            mysqli_stmt_close($stmt_upd_user);
+
+            $created_at = date("Y-m-d H:i:s");
+
+            // 7. Insert transaction for the purchasing user (CREDIT for plan purchase)
+            $trans_type = "credit";
+            $trans_description = "Plan Purchase - Initial Balance";
+            $sql = "INSERT INTO transaction (order_id, user_id, balance, status, created_at) 
+                   VALUES (?, ?, ?, 1, ?)";
+            $stmt_insert_user_trans = mysqli_prepare($conn, $sql);
+            mysqli_stmt_bind_param(
+                $stmt_insert_user_trans,
+                "sids",
+                $transaction_id,
+                $user_id,
+                $transaction_amount,
+                $created_at
+            );
+
+            if (!mysqli_stmt_execute($stmt_insert_user_trans)) {
+                throw new Exception("Failed to insert user transaction");
+            }
+
+            $user_transaction_id = mysqli_insert_id($conn);
+            mysqli_stmt_close($stmt_insert_user_trans);
+
+            // 8. Calculate commission percentages
+            $level1_percentage = min(100, max(0, (float)$commission['level1_commission'])) / 100;
+            $level2_percentage = min(100, max(0, (float)$commission['level2_commission'])) / 100;
+            $level3_percentage = min(100, max(0, (float)$commission['level3_commission'])) / 100;
+
+            // Calculate commission amounts
+            $level1_commission = round($transaction_amount * $level1_percentage, 2);
+            $level2_commission = round($transaction_amount * $level2_percentage, 2);
+            $level3_commission = round($transaction_amount * $level3_percentage, 2);
+
+            // 9. Process 3-level commission distribution
+            $commission_levels = [
+                ['level' => 1, 'amount' => $level1_commission, 'percentage' => $level1_percentage * 100],
+                ['level' => 2, 'amount' => $level2_commission, 'percentage' => $level2_percentage * 100],
+                ['level' => 3, 'amount' => $level3_commission, 'percentage' => $level3_percentage * 100]
+            ];
+
+            $current_user_id = $user_id;
+            $commission_data = [];
+
+            foreach ($commission_levels as $commission_level) {
+                if ($commission_level['amount'] <= 0) {
+                    continue;
+                }
+
+                // Get upline for current user
+                $qry_upline = "SELECT upline_id FROM users WHERE id = ? AND upline_id IS NOT NULL LIMIT 1";
+                $stmt_upline = mysqli_prepare($conn, $qry_upline);
+                mysqli_stmt_bind_param($stmt_upline, "i", $current_user_id);
+                mysqli_stmt_execute($stmt_upline);
+                $upline_result = mysqli_stmt_get_result($stmt_upline);
+                $upline = mysqli_fetch_assoc($upline_result);
+                mysqli_stmt_close($stmt_upline);
+
+                if (!$upline || empty($upline['upline_id'])) {
+                    break; // No more uplines in chain
+                }
+
+                $upline_id = (int)$upline['upline_id'];
+                $commission_amount = $commission_level['amount'];
+
+                // Update upline balance - यहाँ balance update हो रहा है
+                $update_balance_sql = "UPDATE users SET balance = balance + ?, updated_at = NOW() WHERE id = ?";
+                $stmt_update_balance = mysqli_prepare($conn, $update_balance_sql);
+                mysqli_stmt_bind_param($stmt_update_balance, "di", $commission_amount, $upline_id);
+
+                if (!mysqli_stmt_execute($stmt_update_balance)) {
+                    throw new Exception("Failed to update upline balance for level {$commission_level['level']}");
+                }
+
+                // Check if balance was actually updated
+                if (mysqli_stmt_affected_rows($stmt_update_balance) === 0) {
+                    // Log warning but continue
+                    logError("No rows affected when updating balance for user $upline_id", $conn);
+                }
+                mysqli_stmt_close($stmt_update_balance);
+
+                // Insert commission transaction record
+                $qry_insert_trans = "INSERT INTO transaction (order_id, user_id, balance, status, created_at) 
+                                    VALUES (?, ?, ?, 1, ?)";
+                $stmt_insert_trans = mysqli_prepare($conn, $qry_insert_trans);
+                mysqli_stmt_bind_param(
+                    $stmt_insert_trans,
+                    "sids",
+                    $transaction_id,
+                    $upline_id,
+                    $commission_amount,
+                    $created_at
+                );
+
+                if (!mysqli_stmt_execute($stmt_insert_trans)) {
+                    throw new Exception("Failed to insert commission transaction");
+                }
+                mysqli_stmt_close($stmt_insert_trans);
+
+                // Store commission data for logging
+                $commission_data[] = [
+                    'level' => $commission_level['level'],
+                    'upline_id' => $upline_id,
+                    'amount' => $commission_amount,
+                    'percentage' => $commission_level['percentage']
+                ];
+
+                // Move to next upline
+                $current_user_id = $upline_id;
+            }
+
+            // 10. Commit all changes
+            mysqli_commit($conn);
+
+            // 11. Send success email
+            sendSuccessEmail($user, $transaction_id, $transaction_amount, $commission_data);
+
+            // 12. Update session with new balance (get fresh data)
+            $get_balance_qry = "SELECT balance FROM users WHERE id = ?";
+            $stmt_balance = mysqli_prepare($conn, $get_balance_qry);
+            mysqli_stmt_bind_param($stmt_balance, "i", $user_id);
+            mysqli_stmt_execute($stmt_balance);
+            $balance_result = mysqli_stmt_get_result($stmt_balance);
+            $balance_data = mysqli_fetch_assoc($balance_result);
+            $_SESSION['balance'] = $balance_data['balance'] ?? $user['balance'];
+            mysqli_stmt_close($stmt_balance);
+
+            // 13. Log success
+            logError("Payment SUCCESS - Transaction: $transaction_id, User: $user_id, Amount: $transaction_amount, Balance Updated: " . $_SESSION['balance'], $conn);
+        } catch (Exception $e) {
+            // Rollback on error
+            mysqli_rollback($conn);
+            throw $e;
+        }
+    } else {
+        // Payment failed - update status to 2
+        $update_failed_qry = "UPDATE pay_transaction SET status = 2, updated_at = NOW() 
+                             WHERE transaction_id = ? AND status = 0";
+        $stmt_failed = mysqli_prepare($conn, $update_failed_qry);
+        mysqli_stmt_bind_param($stmt_failed, "s", $transaction_id);
+        mysqli_stmt_execute($stmt_failed);
+        mysqli_stmt_close($stmt_failed);
+
+        logError("Payment FAILED - Code: $payment_code, Transaction: $transaction_id", $conn);
+    }
+} catch (Exception $e) {
+    logError("Payment processing ERROR: " . $e->getMessage(), $conn);
+    $error_message = "An error occurred while processing your payment. Please contact support.";
+}
+
+// Function to send success email with commission details
+function sendSuccessEmail($user, $transaction_id, $amount, $commission_data = [])
+{
+    $to = $user['email'];
+    $subject = "Payment Successful - Order #" . $transaction_id;
+
+    $now = new DateTime();
+    $timestring = $now->format('F j, Y');
+    $user_name = htmlspecialchars($user['first_name'] . ' ' . $user['last_name']);
+    $formatted_amount = number_format($amount, 2);
+
+    // Build commission details HTML
+    $commission_html = '';
+    if (!empty($commission_data)) {
+        $commission_html = '<h3>Commission Distributed:</h3><table style="width:100%;border-collapse:collapse;margin:15px 0;">';
+        $commission_html .= '<tr style="background:#f5f5f5;"><th style="padding:10px;text-align:left;">Level</th><th style="padding:10px;text-align:left;">Upline ID</th><th style="padding:10px;text-align:left;">Amount</th><th style="padding:10px;text-align:left;">Percentage</th></tr>';
+
+        foreach ($commission_data as $commission) {
+            $commission_html .= '<tr style="border-bottom:1px solid #ddd;">';
+            $commission_html .= '<td style="padding:10px;">Level ' . $commission['level'] . '</td>';
+            $commission_html .= '<td style="padding:10px;">' . $commission['upline_id'] . '</td>';
+            $commission_html .= '<td style="padding:10px;">₹' . number_format($commission['amount'], 2) . '</td>';
+            $commission_html .= '<td style="padding:10px;">' . $commission['percentage'] . '%</td>';
+            $commission_html .= '</tr>';
+        }
+        $commission_html .= '</table>';
+    }
+
+    $message = <<<HTML
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Payment Successful</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #28a745; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+        .content { background: #fff; padding: 30px; border: 1px solid #ddd; border-top: none; }
+        .footer { background: #f5f5f5; padding: 20px; text-align: center; font-size: 12px; color: #666; border-top: 1px solid #ddd; }
+        .button { display: inline-block; padding: 12px 25px; background: #007bff; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; }
+        .details { margin: 20px 0; border-collapse: collapse; width: 100%; }
+        .details th { background: #f8f9fa; padding: 10px; text-align: left; border-bottom: 2px solid #dee2e6; }
+        .details td { padding: 10px; border-bottom: 1px solid #dee2e6; }
+        .success-icon { color: #28a745; font-size: 48px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Payment Successful!</h1>
+        </div>
+        <div class="content">
+            <div style="text-align:center;">
+                <div class="success-icon">✓</div>
+            </div>
+            
+            <p>Dear $user_name,</p>
+            <p>Your payment has been processed successfully. Thank you for your purchase!</p>
+            
+            <table class="details">
+                <tr>
+                    <th>Transaction ID:</th>
+                    <td>$transaction_id</td>
+                </tr>
+                <tr>
+                    <th>Date:</th>
+                    <td>$timestring</td>
+                </tr>
+                <tr>
+                    <th>Amount Paid:</th>
+                    <td><strong>₹$formatted_amount</strong></td>
+                </tr>
+                <tr>
+                    <th>Account Status:</th>
+                    <td><span style="color:#28a745;font-weight:bold;">ACTIVE</span></td>
+                </tr>
+            </table>
+            
+            $commission_html
+            
+            <h3>What's Next?</h3>
+            <ul>
+                <li>Your account is now active</li>
+                <li>You can access all premium features</li>
+                <li>Start earning commissions by referring others</li>
+                <li>Check your updated balance in dashboard</li>
+            </ul>
+            
+            <div style="text-align:center;margin:30px 0;">
+                <a href="https://shopercity.com/dashboard" class="button">Go to Dashboard</a>
+            </div>
+            
+            <p>If you have any questions, please contact our support team.</p>
+        </div>
+        <div class="footer">
+            <p>This is an automated email, please do not reply.</p>
+            <p>&copy; " . date('Y') . " Shopercity. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+HTML;
+
+    $headers = "MIME-Version: 1.0" . "\r\n";
+    $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
+    $headers .= "From: Shopercity <noreply@shopercity.com>" . "\r\n";
+    $headers .= "Reply-To: support@shopercity.com" . "\r\n";
+    $headers .= "X-Mailer: PHP/" . phpversion();
+    $headers .= "X-Priority: 1 (Highest)" . "\r\n";
+    $headers .= "X-MSMail-Priority: High" . "\r\n";
+
+    @mail($to, $subject, $message, $headers);
+}
+
+// Display status page
+$is_success = ($payment_code ?? '') === PAYMENT_SUCCESS_CODE;
+$display_amount = $transaction_amount ?? 0;
+$display_transaction_id = $transaction_id ?? ($_GET['transactionId'] ?? 'N/A');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -304,76 +427,441 @@ if (isset($_POST['code']) && $_POST['code'] == "PAYMENT_SUCCESS") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transaction Status</title>
-    <link href="https://fonts.googleapis.com/css?family=Nunito+Sans:400,400i,700,900&display=swap" rel="stylesheet">
+    <title>Payment Status - Shopercity</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body {
-            text-align: center;
-            padding: 40px 0;
-            background: #EBF0F5;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
-        h1 {
-            color: <?php echo ($_POST['code'] == 'PAYMENT_SUCCESS') ? '#88B04B' : '#D11A2A'; ?>;
-            font-family: "Nunito Sans", "Helvetica Neue", sans-serif;
+        body {
+            font-family: 'Nunito Sans', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #333;
+        }
+
+        .status-container {
+            max-width: 800px;
+            width: 100%;
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.15);
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .status-header {
+            background: <?php echo $is_success ? '#28a745' : '#dc3545'; ?>;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .status-icon {
+            font-size: 70px;
+            margin-bottom: 15px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.1);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .status-title {
+            font-size: 36px;
             font-weight: 900;
-            font-size: 40px;
             margin-bottom: 10px;
         }
 
-        p {
-            color: #404F5E;
-            font-family: "Nunito Sans", "Helvetica Neue", sans-serif;
-            font-size: 20px;
-            margin: 0;
+        .status-subtitle {
+            font-size: 18px;
+            opacity: 0.9;
         }
 
-        i {
-            color: <?php echo ($_POST['code'] == 'PAYMENT_SUCCESS') ? '#9ABC66' : '#D11A2A'; ?>;
-            font-size: 100px;
-            line-height: 200px;
-            margin-left: -15px;
+        .status-content {
+            padding: 40px;
         }
 
-        .card {
-            background: white;
-            padding: 60px;
-            border-radius: 4px;
-            box-shadow: 0 2px 3px #C8D0D8;
+        .transaction-details {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .detail-item {
+            margin-bottom: 15px;
+        }
+
+        .detail-label {
+            font-size: 14px;
+            color: #666;
+            font-weight: 600;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .detail-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .user-balance {
+            background: <?php echo $is_success ? '#e8f5e9' : '#f8d7da'; ?>;
+            border-left: 4px solid <?php echo $is_success ? '#28a745' : '#dc3545'; ?>;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .balance-icon {
+            font-size: 30px;
+            margin-right: 15px;
+            color: <?php echo $is_success ? '#28a745' : '#dc3545'; ?>;
+        }
+
+        .balance-info h4 {
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .balance-amount {
+            font-size: 24px;
+            font-weight: 900;
+            color: <?php echo $is_success ? '#28a745' : '#dc3545'; ?>;
+        }
+
+        .action-section {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .btn {
             display: inline-block;
-            margin: 0 auto;
+            padding: 14px 32px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            margin: 0 10px 10px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+            border: 2px solid #007bff;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+            border-color: #0056b3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 123, 255, 0.3);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+            border: 2px solid #28a745;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+            border-color: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: #6c757d;
+            border: 2px solid #6c757d;
+        }
+
+        .btn-outline:hover {
+            background: #6c757d;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .commission-details {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 25px;
+        }
+
+        .commission-title {
+            color: #856404;
+            font-weight: 700;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .commission-levels {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+        }
+
+        .level-item {
+            text-align: center;
+            padding: 15px;
+            min-width: 150px;
+        }
+
+        .level-number {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .level-amount {
+            font-size: 20px;
+            font-weight: 900;
+            color: #28a745;
+            margin: 5px 0;
+        }
+
+        .redirect-notice {
+            text-align: center;
+            margin-top: 25px;
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .countdown {
+            font-weight: 900;
+            color: #007bff;
+            font-size: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .status-content {
+                padding: 25px 20px;
+            }
+
+            .detail-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .btn {
+                display: block;
+                width: 100%;
+                margin: 10px 0;
+            }
+
+            .commission-levels {
+                flex-direction: column;
+            }
+
+            .level-item {
+                min-width: 100%;
+                border-bottom: 1px solid #ffeaa7;
+            }
+
+            .level-item:last-child {
+                border-bottom: none;
+            }
         }
     </style>
 </head>
 
 <body>
-    <div class="card">
-        <div style="border-radius:200px; height:200px; width:200px; background:<?php echo ($_POST['code'] == 'PAYMENT_SUCCESS') ? '#F8FAF5;' : '#FFEDED;'; ?> margin:0 auto;">
-            <i class="checkmark">
-                <?php echo ($_POST['code'] == 'PAYMENT_SUCCESS') ? '✓' : 'X'; ?>
-            </i>
+    <div class="status-container">
+        <div class="status-header">
+            <div class="status-icon">
+                <?php if ($is_success): ?>
+                    <i class="fas fa-check-circle"></i>
+                <?php else: ?>
+                    <i class="fas fa-times-circle"></i>
+                <?php endif; ?>
+            </div>
+            <h1 class="status-title">
+                <?php echo $is_success ? 'Payment Successful!' : 'Payment Failed'; ?>
+            </h1>
+            <p class="status-subtitle">
+                <?php echo $is_success ? 'Your transaction has been completed successfully.' : 'We could not process your payment.'; ?>
+            </p>
         </div>
 
-        <h1><?php echo ($_POST['code'] == 'PAYMENT_SUCCESS') ? 'Success' : 'Failed'; ?></h1>
-        <p>Transaction ID : <?php echo htmlspecialchars($_POST['transactionId'] ?? 'N/A'); ?></p>
-        <p>Amount : ₹<?php echo number_format($total_payment ?? 0, 2); ?></p>
-        <p>
-            <?php
-            if ($_POST['code'] == 'PAYMENT_SUCCESS') {
-                echo "We received your purchase request;<br /> we'll be in touch shortly!";
-            } else {
-                echo 'Your Transaction has Failed. Please try again later.';
-            }
-            ?>
-        </p>
+        <div class="status-content">
+            <div class="transaction-details">
+                <h3 style="margin-bottom:20px;color:#333;">Transaction Details</h3>
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <span class="detail-label">Transaction ID</span>
+                        <span class="detail-value"><?php echo htmlspecialchars($display_transaction_id); ?></span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Amount</span>
+                        <span class="detail-value">₹<?php echo number_format($display_amount, 2); ?></span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Date & Time</span>
+                        <span class="detail-value"><?php echo date('F j, Y, g:i a'); ?></span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Status</span>
+                        <span class="detail-value" style="color:<?php echo $is_success ? '#28a745' : '#dc3545'; ?>;">
+                            <?php echo $is_success ? 'COMPLETED' : 'FAILED'; ?>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <?php if ($is_success && isset($_SESSION['balance'])): ?>
+                <div class="user-balance">
+                    <div class="balance-icon">
+                        <i class="fas fa-wallet"></i>
+                    </div>
+                    <div class="balance-info">
+                        <h4>Your Current Balance</h4>
+                        <div class="balance-amount">
+                            ₹<?php echo number_format($_SESSION['balance'], 2); ?>
+                        </div>
+                        <p style="color:#666;font-size:14px;margin-top:5px;">
+                            Plan amount + Commissions (if any)
+                        </p>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($is_success && isset($level1_commission) && $level1_commission > 0): ?>
+                <div class="commission-details">
+                    <h4 class="commission-title"><i class="fas fa-share-alt"></i> Commission Distribution</h4>
+                    <div class="commission-levels">
+                        <div class="level-item">
+                            <div class="level-number">Level 1 Commission</div>
+                            <div class="level-amount">₹<?php echo number_format($level1_commission ?? 0, 2); ?></div>
+                            <div class="level-percentage"><?php echo ($level1_percentage ?? 0) * 100; ?>%</div>
+                        </div>
+                        <?php if (($level2_commission ?? 0) > 0): ?>
+                            <div class="level-item">
+                                <div class="level-number">Level 2 Commission</div>
+                                <div class="level-amount">₹<?php echo number_format($level2_commission ?? 0, 2); ?></div>
+                                <div class="level-percentage"><?php echo ($level2_percentage ?? 0) * 100; ?>%</div>
+                            </div>
+                        <?php endif; ?>
+                        <?php if (($level3_commission ?? 0) > 0): ?>
+                            <div class="level-item">
+                                <div class="level-number">Level 3 Commission</div>
+                                <div class="level-amount">₹<?php echo number_format($level3_commission ?? 0, 2); ?></div>
+                                <div class="level-percentage"><?php echo ($level3_percentage ?? 0) * 100; ?>%</div>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <div class="action-section">
+                <?php if ($is_success): ?>
+                    <a href="/dashboard" class="btn btn-success">
+                        <i class="fas fa-tachometer-alt"></i> Go to Dashboard
+                    </a>
+                    <a href="/profile" class="btn btn-primary">
+                        <i class="fas fa-user"></i> View Profile
+                    </a>
+                    <a href="/referral" class="btn btn-outline">
+                        <i class="fas fa-users"></i> Refer & Earn
+                    </a>
+                <?php else: ?>
+                    <a href="/pricing" class="btn btn-primary">
+                        <i class="fas fa-redo"></i> Try Again
+                    </a>
+                    <a href="/contact" class="btn btn-outline">
+                        <i class="fas fa-headset"></i> Contact Support
+                    </a>
+                <?php endif; ?>
+            </div>
+
+            <div class="redirect-notice">
+                <p>You will be redirected automatically in <span id="countdown" class="countdown">10</span> seconds...</p>
+                <p style="font-size:12px;margin-top:5px;">Or click any button above to navigate manually</p>
+            </div>
+        </div>
     </div>
 
     <script>
-        function redirectPage() {
-            // Uncomme?nt the line below to enable redirection
-            window.location.href = "https://www.shopercity.com/";
-        }
-        setTimeout(redirectPage, 4000); // Redirect after 5 seconds
+        // Auto-redirect after countdown
+        // let countdown = 10;
+        // const countdownElement = document.getElementById('countdown');
+
+        // const countdownInterval = setInterval(() => {
+        //     countdown--;
+        //     countdownElement.textContent = countdown;
+
+        //     if (countdown <= 0) {
+        //         clearInterval(countdownInterval);
+        //         <?php if ($is_success): ?>
+        //             window.location.href = '/dashboard';
+        //         <?php else: ?>
+        //             window.location.href = '/';
+        //         <?php endif; ?>
+        //     }
+        // }, 1000);
+
+        // // Manual redirect override
+        // document.querySelectorAll('.btn').forEach(button => {
+        //     button.addEventListener('click', function(e) {
+        //         clearInterval(countdownInterval);
+        //         countdownElement.textContent = '0';
+        //     });
+        // });
+
+        // // Add animation to balance amount
+        // <?php if ($is_success && isset($_SESSION['balance'])): ?>
+        // setTimeout(() => {
+        //     document.querySelector('.balance-amount').style.transform = 'scale(1.1)';
+        //     document.querySelector('.balance-amount').style.transition = 'transform 0.5s ease';
+
+        //     setTimeout(() => {
+        //         document.querySelector('.balance-amount').style.transform = 'scale(1)';
+        //     }, 500);
+        // }, 1000);
+        <?php endif; ?>
     </script>
 </body>
 
