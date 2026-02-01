@@ -24,9 +24,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // If no errors, store in session
     if (empty($errors)) {
         $_SESSION['location'] = [
-            'state'    => $state,
-            'district' => $district,
-            'city'     => $city,
+            'state_id'    => $state,
+            'district_id' => $district,
+            'city_id'     => $city,
         ];
 
         $_SESSION['success'] = "Location saved successfully";

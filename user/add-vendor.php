@@ -48,14 +48,14 @@
 		if (mysqli_num_rows($res) == 10) {
 			header("location:vendor.php");
 		}
-		if(isset($_GET['id'])){
+		if (isset($_GET['id'])) {
 			$user_id        =   $_SESSION['user_id'];
 			$id				=	$_GET['id'];
 			$vendor_qry    	=   "select * from vendor where user_id=$user_id AND id =$id  AND status != 3";
 			$vendor        	=   mysqli_query($conn, $vendor_qry);
 			$vendor_row    	=   mysqli_fetch_assoc($vendor);
 		} else {
-			$vendor_row		=	[];	
+			$vendor_row		=	[];
 		}
 		?>
 		<div class="content">
@@ -73,7 +73,9 @@
 				<h3 class="fw-bold">Add your business</h3>
 				<div class="card p-4">
 					<form class="row g-3" method="post" action="" enctype='multipart/form-data' id="add_vendor">
-						<input type="hidden" name="id" value="<?php if(isset($_GET['id'])){echo $_GET['id'];} ?>">
+						<input type="hidden" name="id" value="<?php if (isset($_GET['id'])) {
+																	echo $_GET['id'];
+																} ?>">
 						<input type="hidden" name="old_banner" value="<?php if (!empty($vendor_row['banner'])) {
 																			echo $vendor_row['banner'];
 																		} ?>">
@@ -83,8 +85,8 @@
 						<div class="col-lg-6 col-12">
 							<label class="form-label ">Owner Name</label>
 							<input type="text" name="v_name" class="form-control text form-control-lg" placeholder="" value="<?php if (!empty($vendor_row['name'])) {
-																															echo $vendor_row['name'];
-																														} ?>">
+																																	echo $vendor_row['name'];
+																																} ?>">
 						</div>
 						<div class="col-lg-6 col-12">
 							<label class="form-label ">Business Name</label>
@@ -112,10 +114,10 @@
 						</div>
 						<div class="col-xl-3 col-lg-4 col-md-6">
 							<label class="form-label">State</label>
-							
+
 							<select name="state" required class="form-select form-control-lg">
 								<option value="">Select State</option>
-								<?php 
+								<?php
 								$state_qry = "SELECT * FROM state";
 								$state_res = mysqli_query($conn, $state_qry);
 								while ($row = mysqli_fetch_assoc($state_res)) {
@@ -199,17 +201,32 @@
 						</div>
 						<div class="col-12 row">
 							<div class="col-12 col-md-12 col-lg-6">
-							    <label class="col-form-label">Discount terms & condition</label>
+								<label class="col-form-label">Discount terms & condition</label>
 								<textarea class="summernote" name="desc_1"><?php if (!empty($vendor_row['desc_1'])) {
 																				echo $vendor_row['desc_1'];
 																			} ?></textarea>
 							</div>
 							<div class="col-12 col-md-12 col-lg-6">
-								
+
 								<label class="col-form-label">Service Description</label>
 								<textarea class="summernote" name="desc_2"><?php if (!empty($vendor_row['desc_2'])) {
 																				echo $vendor_row['desc_2'];
 																			} ?></textarea>
+							</div>
+						</div>
+						<div class="col-12 row">
+							<div class="col-12 col-md-12 col-lg-6">
+								<label class="col-form-label">Facebook Link</label>
+								<input class="summernote" type="text" name="fb_link" value="<?php if (!empty($vendor_row['fb_link'])) {
+																								echo $vendor_row['fb_link'];
+																							} ?>">
+							</div>
+							<div class="col-12 col-md-12 col-lg-6">
+
+								<label class="col-form-label">Instagram Link</label>
+								<input class="summernote" type="text" name="insta_link" value="<?php if (!empty($vendor_row['insta_link'])) {
+																									echo $vendor_row['insta_link'];
+																								} ?>">
 							</div>
 						</div>
 						<div class="col-lg-6 col-12">
@@ -425,8 +442,8 @@
 					state: {
 						required: "Please enter your state"
 					},
-					district:{
-						required:'Please enter your district'
+					district: {
+						required: 'Please enter your district'
 					},
 					country: {
 						required: "Please enter your country"
@@ -501,30 +518,32 @@
 			}, "Invalid file type.");
 		});
 
-		$(document).ready(function () {
-			$('select[name="state"]').on('change', function () {
+		$(document).ready(function() {
+			$('select[name="state"]').on('change', function() {
 				var stateCode = $(this).val();
 
 				if (stateCode !== "") {
 					$.ajax({
 						url: '../get_state.php', // ✅ Set correct file path here
 						type: 'POST',
-						data: { state: stateCode },
+						data: {
+							state: stateCode
+						},
 						dataType: 'json',
-						success: function (response) {
+						success: function(response) {
 							let $districtSelect = $('select[name="district"]');
 							$districtSelect.empty();
 
 							if (response.length > 0) {
 								$districtSelect.append('<option value="">Select District</option>');
-								$.each(response, function (index, districtName) {
+								$.each(response, function(index, districtName) {
 									$districtSelect.append('<option value="' + districtName + '">' + districtName + '</option>');
 								});
 							} else {
 								$districtSelect.append('<option value="">No Districts Found</option>');
 							}
 						},
-						error: function () {
+						error: function() {
 							alert("Failed to fetch districts.");
 						}
 					});

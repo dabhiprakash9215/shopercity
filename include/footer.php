@@ -63,7 +63,7 @@
 <div class="modal-overlay location-modal" id="modal-overlay">
     <div class="modal">
         <div class="modal-header">
-            <h2 class="modal-title">Select Your Location</h2>
+            <h2 class="modal-title text-light">Select Your Location</h2>
             <button class="close-btn" id="close-modal">×</button>
         </div>
         <form method="post" action="db/location.php">
@@ -126,8 +126,8 @@
             </div>
 
             <div class="modal-actions">
-                <button class="btn btn-cancel" id="cancel-modal">Cancel</button>
-                <button class="btn btn-submit" type="submit" id="confirm-location" disabled>Confirm Location</button>
+                <button class="btn btn-cancel " id="cancel-modal">Cancel</button>
+                <button class="btn btn-submit " type="submit" id="confirm-location" disabled>Confirm Location</button>
             </div>
         </form>
     </div>

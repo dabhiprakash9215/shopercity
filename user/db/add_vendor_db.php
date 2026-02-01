@@ -14,7 +14,7 @@ if (!defined('URL')) {
     // Check if the environment is local or live
     if ($_SERVER['HTTP_HOST'] == 'localhost' || $_SERVER['HTTP_HOST'] == '127.0.0.1') {
         // Local environment
-        define('URL', 'http://localhost/project/core_php/shopercity/'); // Use your local path
+        define('URL', 'http://localhost/project/core_php/shopercity/');
     } else {
         // Production environment
         define('URL', 'https://shopercity.com/');
@@ -44,6 +44,8 @@ if (isset($_POST['add'])) {
     $banner = ''; // Placeholder if you don't upload a banner
     $starting_date = mysqli_real_escape_string($conn, $_POST['s_date']);
     $end_date = mysqli_real_escape_string($conn, $_POST['e_date']);
+    $fb_link = mysqli_real_escape_string($conn, $_POST['fb_link']);
+    $insta_link = mysqli_real_escape_string($conn, $_POST['insta_link']);
     $status = 0; // You can modify the status value based on your requirement
 
     // File upload logic for banner
@@ -116,7 +118,9 @@ if (isset($_POST['add'])) {
                 status = '$status',
                 starting_date = '$starting_date',
                 end_date = '$end_date',
-                district='$district'
+                district='$district',
+                fb_link='$fb_link',
+                insta_link='$insta_link'
                 WHERE user_id = '$user_id' AND id='$id'";
         // print_r($update_query);
         // die;
@@ -127,8 +131,8 @@ if (isset($_POST['add'])) {
         }
     } else {
         // Construct SQL query to insert data into the database
-        $query = "INSERT INTO vendor (user_id, category_id, name, store_name, contact, email, street, city_id, state_id, country_id, zipcode, desc_1, desc_2, discount_id, delivery_status, created_by, modified_by, image, banner, status,  starting_date, end_date, district)
-                    VALUES ('$user_id','$category_id', '$name', '$store_name', '$contact', '$email', '$street', '$city_id', '$state_id', '$country_id', '$zipcode', '$desc_1', '$desc_2', '$discount_id', '$delivery_status', '$created_by', '$modified_by', '$image_new_name', '$banner_new_name', '$status', '$starting_date', '$end_date', '$district')";
+        $query = "INSERT INTO vendor (user_id, category_id, name, store_name, contact, email, street, city_id, state_id, country_id, zipcode, desc_1, desc_2, discount_id, delivery_status, created_by, modified_by, image, banner, status,  starting_date, end_date, district, insta_link, fb_link)
+                    VALUES ('$user_id','$category_id', '$name', '$store_name', '$contact', '$email', '$street', '$city_id', '$state_id', '$country_id', '$zipcode', '$desc_1', '$desc_2', '$discount_id', '$delivery_status', '$created_by', '$modified_by', '$image_new_name', '$banner_new_name', '$status', '$starting_date', '$end_date', '$district', '$insta_link', '$fb_link')";
 
         // Execute query
         if (mysqli_query($conn, $query)) {
@@ -160,4 +164,3 @@ $category       =   mysqli_query($conn, $category_qry);
 
 $discount_qry   =   "select * from discount";
 $discount       =   mysqli_query($conn, $discount_qry);
-
