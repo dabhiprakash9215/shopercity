@@ -101,7 +101,7 @@
 																														} ?>">
 						</div>
 						<div class="col-xl-3 col-lg-4 col-md-6">
-							<label class="form-label">Address</label>
+							<label class="form-label">Bio</label>
 							<input type="text" class="form-control form-control-lg" name="street" value="<?php if (!empty($vendor_row['street'])) {
 																												echo $vendor_row['street'];
 																											} ?>">
@@ -217,16 +217,16 @@
 						<div class="col-12 row">
 							<div class="col-12 col-md-12 col-lg-6">
 								<label class="col-form-label">Facebook Link</label>
-								<input class="summernote" type="text" name="fb_link" value="<?php if (!empty($vendor_row['fb_link'])) {
-																								echo $vendor_row['fb_link'];
-																							} ?>">
+								<input type="text" name="fb_link" value="<?php if (!empty($vendor_row['fb_link'])) {
+																				echo $vendor_row['fb_link'];
+																			} ?>">
 							</div>
 							<div class="col-12 col-md-12 col-lg-6">
 
 								<label class="col-form-label">Instagram Link</label>
-								<input class="summernote" type="text" name="insta_link" value="<?php if (!empty($vendor_row['insta_link'])) {
-																									echo $vendor_row['insta_link'];
-																								} ?>">
+								<input type="text" name="insta_link" value="<?php if (!empty($vendor_row['insta_link'])) {
+																				echo $vendor_row['insta_link'];
+																			} ?>">
 							</div>
 						</div>
 						<div class="col-lg-6 col-12">
