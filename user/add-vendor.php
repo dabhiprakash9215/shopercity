@@ -148,7 +148,7 @@
 																																echo $vendor_row['contact'];
 																															} ?>">
 						</div>
-						<div class="col-xl-3 col-lg-6 col-sm-6">
+						<!-- <div class="col-xl-3 col-lg-6 col-sm-6">
 							<label class="form-label">Category Name</label>
 							<select class="form-select form-control-lg" name="category">
 								<?php
@@ -161,7 +161,7 @@
 								}
 								?>
 							</select>
-						</div>
+						</div> -->
 						<div class="col-xl-3 col-lg-6 col-sm-6">
 							<label class="form-label">Discount</label>
 							<select class="form-select form-control-lg" name="discount">

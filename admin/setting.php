@@ -59,7 +59,7 @@ $level1 = $commission['level1_commission'] ?? 0;
 $level2 = $commission['level2_commission'] ?? 0;
 $level3 = $commission['level3_commission'] ?? 0;
 $admin = $commission['admin_commission'] ?? 0;
-$plan_prices     =   $commission['plan_price'];
+$plan_prices     =   $commission['plan_price'] ?? 0;
 ?>
 
 <!DOCTYPE html>
