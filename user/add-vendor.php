@@ -115,7 +115,7 @@
 								$state_qry = "SELECT * FROM state";
 								$state_res = mysqli_query($conn, $state_qry);
 								while ($row = mysqli_fetch_assoc($state_res)) {
-									echo '<option value="' . $row['state_code'] . '">' . $row['name'] . '</option>';
+									echo '<option value="' . $row['state_code'] . '" ' . ($vendor_row['state_id'] == $row['state_code'] ? 'selected' : '') . '>' . $row['name'] . '</option>';
 								}
 								?>
 							</select>
@@ -547,7 +547,8 @@
 				$('#city-select').prop('disabled', true);
 
 				$.post('../db/get_districts.php', {
-					state_id: this.value
+					state_id: this.value,
+					district_id: $('#district-select').val()
 				}, html => {
 					$('#district-select').html(html).prop('disabled', false);
 				});
@@ -557,7 +558,8 @@
 				$('#city-select').html('<option>Loading...</option>').prop('disabled', true);
 
 				$.post('../db/get_cities.php', {
-					district_id: this.value
+					district_id: this.value,
+					city_id: $('#city-select').val()
 				}, html => {
 					$('#city-select').html(html).prop('disabled', false);
 				});
