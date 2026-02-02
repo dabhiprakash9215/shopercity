@@ -92,20 +92,10 @@ if (isset($_POST['search'])) {
                                     } ?>">
                             <a href="index.php">Home</a>
                         </li>
-                        <?php
-                        if (isset($_SESSION['is_active']) && $_SESSION['is_active'] != 1) { ?>
-                            <li class="<?php if ($activePage == 'plan') {
-                                            echo "active";
-                                        } ?>">
-                                <a href="plan.php">Plan</a>
-                            </li>
-                        <?php } else if (!isset($_SESSION['is_active'])) {
-                        ?>
-                            <li>
-                                <a href="plan.php">Plan</a>
-                            </li>
-                        <?php
-                        } ?>
+
+                        <li>
+                            <a href="plan.php">Plan</a>
+                        </li>
                         <li class="<?php if ($activePage == 'about') {
                                         echo "active";
                                     } ?>">
