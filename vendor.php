@@ -51,8 +51,6 @@
             <div class="mb-10 py-6 container">
                 <div class="flex flex-wrap gap-8 mb-4">
                     <?php
-                    print_r($_SESSION['city_id']);
-                    die;
                     if (isset($_GET["cat_id"])) {
                         $get_catId  =   $_GET["cat_id"];
 
