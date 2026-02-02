@@ -198,8 +198,7 @@
                                     <div class="tab-pane active d-flex flex-column justify-content-center align-items-center" id="signin">
                                         <h4>Benefits</4>
                                             <h6>Acceceble All features.</h6>
-                                            <h6>Use all Category.</h6>
-                                            <h6>Use Unlimited for 2 year.</h6>
+                                            <h6>Use Unlimited for 1 year.</h6>
                                             <h6>Get Agency Code.</h6>
                                             <!-- <h6>Earn Rewards Get Income.</h6> -->
                                             <h6>Get full Marketing Support from us.</h6>

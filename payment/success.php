@@ -30,12 +30,12 @@ function logError($message, $conn = null)
 // Main payment processing
 try {
     // Validate required parameters
-    if (!isset($_GET['code']) || !isset($_GET['transactionId'])) {
+    if (!isset($_POST['code']) || !isset($_POST['transactionId'])) {
         throw new Exception("Missing required parameters");
     }
 
-    $payment_code = trim($_GET['code']);
-    $transaction_id = trim($_GET['transactionId']);
+    $payment_code = trim($_POST['code']);
+    $transaction_id = trim($_POST['transactionId']);
 
     if (!preg_match('/^[A-Z0-9_-]+$/i', $transaction_id)) {
         throw new Exception("Invalid transaction ID format");
@@ -46,8 +46,8 @@ try {
         mysqli_begin_transaction($conn);
 
         try {
-            // 1. Get payment transaction details with proper locking
-            $qry_order = "SELECT id, user_id FROM pay_transaction WHERE transaction_id = ? AND status = 0 FOR UPDATE";
+            // 1. Get payment transaction details
+            $qry_order = "SELECT id, user_id, amount FROM pay_transaction WHERE transaction_id = ? AND status = 1 LIMIT 1";
             $stmt_order = mysqli_prepare($conn, $qry_order);
 
             if (!$stmt_order) {
@@ -60,7 +60,7 @@ try {
                 throw new Exception("Failed to execute query: " . mysqli_stmt_error($stmt_order));
             }
 
-            $res_order = mysqli_stmt_get_result($stmt_order);
+            $res_order = mysqli_stmt_POST_result($stmt_order);
             $transaction = mysqli_fetch_assoc($res_order);
             mysqli_stmt_close($stmt_order);
 
@@ -69,6 +69,7 @@ try {
             }
 
             $user_id = (int)$transaction['user_id'];
+            $transaction_amount = (float)$transaction['amount'];
 
             // 2. Get commission settings
             $query = "SELECT plan_price, level1_commission, level2_commission, level3_commission 
@@ -85,18 +86,17 @@ try {
                 throw new Exception("Commission settings not found");
             }
 
-            // Get plan price
-            $transaction_amount = 1200.00; // Default amount
-            if (!empty($commission['plan_price']) && is_numeric($commission['plan_price'])) {
+            // Use plan price from commission settings if available
+            if (!empty($commission['plan_price']) && $commission['plan_price'] > 0) {
                 $transaction_amount = (float)$commission['plan_price'];
             }
 
-            // 3. Get user details with FOR UPDATE to lock the row
-            $sel_user_qry = "SELECT * FROM users WHERE id = ? FOR UPDATE";
+            // 3. Get user details
+            $sel_user_qry = "SELECT * FROM users WHERE id = ? LIMIT 1";
             $stmt_user = mysqli_prepare($conn, $sel_user_qry);
             mysqli_stmt_bind_param($stmt_user, "i", $user_id);
             mysqli_stmt_execute($stmt_user);
-            $user_result = mysqli_stmt_get_result($stmt_user);
+            $user_result = mysqli_stmt_POST_result($stmt_user);
             $user = mysqli_fetch_assoc($user_result);
             mysqli_stmt_close($stmt_user);
 
@@ -119,10 +119,10 @@ try {
             $_SESSION['referral_id'] = $user['referral_id'] ?? "";
             $_SESSION['aadhar_number'] = $user['aadhar_number'] ?? "";
             $_SESSION['is_active'] = USER_ACTIVE_STATUS;
-            $_SESSION['balance'] = $user['balance']; // Add balance to session
+            $_SESSION['balance'] = $user['balance'];
 
-            // 5. Update payment transaction status
-            $upd_ord_qry = "UPDATE pay_transaction SET status = 1, updated_at = NOW() 
+            // 5. Update payment transaction status (0 = pending, 1 = success, 2 = failed)
+            $upd_ord_qry = "UPDATE pay_transaction SET status = 0, updated_at = NOW() 
                            WHERE transaction_id = ? AND status = 0";
             $stmt_upd_ord = mysqli_prepare($conn, $upd_ord_qry);
             mysqli_stmt_bind_param($stmt_upd_ord, "s", $transaction_id);
@@ -136,26 +136,20 @@ try {
             }
             mysqli_stmt_close($stmt_upd_ord);
 
-            // 6. Update user active status AND INITIAL BALANCE
-            // First, add the plan amount to user's balance as initial credit
-            $upd_user_qry = "UPDATE users SET is_active = 1, 
-                            balance = balance + ?, 
-                            updated_at = NOW() 
-                            WHERE id = ?";
+            // 6. Update user active status (DO NOT add plan amount to user's balance)
+            $upd_user_qry = "UPDATE users SET is_active = 1, updated_at = NOW() WHERE id = ?";
             $stmt_upd_user = mysqli_prepare($conn, $upd_user_qry);
-            $initial_balance = $transaction_amount; // Add plan amount to user's balance
-            mysqli_stmt_bind_param($stmt_upd_user, "di", $initial_balance, $user_id);
+            mysqli_stmt_bind_param($stmt_upd_user, "i", $user_id);
 
             if (!mysqli_stmt_execute($stmt_upd_user)) {
-                throw new Exception("Failed to update user status and balance");
+                throw new Exception("Failed to update user status");
             }
             mysqli_stmt_close($stmt_upd_user);
 
             $created_at = date("Y-m-d H:i:s");
 
-            // 7. Insert transaction for the purchasing user (CREDIT for plan purchase)
-            $trans_type = "credit";
-            $trans_description = "Plan Purchase - Initial Balance";
+            // 7. Insert transaction for the purchasing user (NO balance addition for plan purchase)
+            // यूजर को प्लान खरीदने पर बैलेंस नहीं मिलेगा, सिर्फ एक्टिव होगा
             $sql = "INSERT INTO transaction (order_id, user_id, balance, status, created_at) 
                    VALUES (?, ?, ?, 1, ?)";
             $stmt_insert_user_trans = mysqli_prepare($conn, $sql);
@@ -185,81 +179,143 @@ try {
             $level2_commission = round($transaction_amount * $level2_percentage, 2);
             $level3_commission = round($transaction_amount * $level3_percentage, 2);
 
-            // 9. Process 3-level commission distribution
-            $commission_levels = [
-                ['level' => 1, 'amount' => $level1_commission, 'percentage' => $level1_percentage * 100],
-                ['level' => 2, 'amount' => $level2_commission, 'percentage' => $level2_percentage * 100],
-                ['level' => 3, 'amount' => $level3_commission, 'percentage' => $level3_percentage * 100]
-            ];
-
-            $current_user_id = $user_id;
+            // 9. Process 3-level commission distribution with proper chain
             $commission_data = [];
 
-            foreach ($commission_levels as $commission_level) {
-                if ($commission_level['amount'] <= 0) {
-                    continue;
+            // Get Level 1 Upline (Direct Referrer)
+            $qry_level1 = "SELECT upline_id FROM users WHERE id = ? AND upline_id IS NOT NULL LIMIT 1";
+            $stmt_level1 = mysqli_prepare($conn, $qry_level1);
+            mysqli_stmt_bind_param($stmt_level1, "i", $user_id);
+            mysqli_stmt_execute($stmt_level1);
+            $result_level1 = mysqli_stmt_POST_result($stmt_level1);
+            $level1_upline = mysqli_fetch_assoc($result_level1);
+            mysqli_stmt_close($stmt_level1);
+
+            $level1_upline_id = null;
+            if ($level1_upline && !empty($level1_upline['upline_id'])) {
+                $level1_upline_id = (int)$level1_upline['upline_id'];
+
+                // Give Level 1 Commission (30%)
+                $update_level1_sql = "UPDATE users SET balance = balance + ?, total_commission = COALESCE(total_commission, 0) + ?, updated_at = NOW() WHERE id = ?";
+                $stmt_update_level1 = mysqli_prepare($conn, $update_level1_sql);
+                mysqli_stmt_bind_param($stmt_update_level1, "ddi", $level1_commission, $level1_commission, $level1_upline_id);
+
+                if (!mysqli_stmt_execute($stmt_update_level1)) {
+                    throw new Exception("Failed to update level 1 upline balance");
                 }
+                mysqli_stmt_close($stmt_update_level1);
 
-                // Get upline for current user
-                $qry_upline = "SELECT upline_id FROM users WHERE id = ? AND upline_id IS NOT NULL LIMIT 1";
-                $stmt_upline = mysqli_prepare($conn, $qry_upline);
-                mysqli_stmt_bind_param($stmt_upline, "i", $current_user_id);
-                mysqli_stmt_execute($stmt_upline);
-                $upline_result = mysqli_stmt_get_result($stmt_upline);
-                $upline = mysqli_fetch_assoc($upline_result);
-                mysqli_stmt_close($stmt_upline);
-
-                if (!$upline || empty($upline['upline_id'])) {
-                    break; // No more uplines in chain
-                }
-
-                $upline_id = (int)$upline['upline_id'];
-                $commission_amount = $commission_level['amount'];
-
-                // Update upline balance - यहाँ balance update हो रहा है
-                $update_balance_sql = "UPDATE users SET balance = balance + ?, updated_at = NOW() WHERE id = ?";
-                $stmt_update_balance = mysqli_prepare($conn, $update_balance_sql);
-                mysqli_stmt_bind_param($stmt_update_balance, "di", $commission_amount, $upline_id);
-
-                if (!mysqli_stmt_execute($stmt_update_balance)) {
-                    throw new Exception("Failed to update upline balance for level {$commission_level['level']}");
-                }
-
-                // Check if balance was actually updated
-                if (mysqli_stmt_affected_rows($stmt_update_balance) === 0) {
-                    // Log warning but continue
-                    logError("No rows affected when updating balance for user $upline_id", $conn);
-                }
-                mysqli_stmt_close($stmt_update_balance);
-
-                // Insert commission transaction record
-                $qry_insert_trans = "INSERT INTO transaction (order_id, user_id, balance, status, created_at) 
-                                    VALUES (?, ?, ?, 1, ?)";
-                $stmt_insert_trans = mysqli_prepare($conn, $qry_insert_trans);
+                // Insert transaction for Level 1
+                $insert_level1_sql = "INSERT INTO transaction (order_id, user_id, balance, status, created_at) 
+                                     VALUES (?, ?, ?, 1, ?)";
+                $stmt_insert_level1 = mysqli_prepare($conn, $insert_level1_sql);
                 mysqli_stmt_bind_param(
-                    $stmt_insert_trans,
+                    $stmt_insert_level1,
                     "sids",
                     $transaction_id,
-                    $upline_id,
-                    $commission_amount,
+                    $level1_upline_id,
+                    $level1_commission,
                     $created_at
                 );
+                mysqli_stmt_execute($stmt_insert_level1);
+                mysqli_stmt_close($stmt_insert_level1);
 
-                if (!mysqli_stmt_execute($stmt_insert_trans)) {
-                    throw new Exception("Failed to insert commission transaction");
-                }
-                mysqli_stmt_close($stmt_insert_trans);
-
-                // Store commission data for logging
                 $commission_data[] = [
-                    'level' => $commission_level['level'],
-                    'upline_id' => $upline_id,
-                    'amount' => $commission_amount,
-                    'percentage' => $commission_level['percentage']
+                    'level' => 1,
+                    'upline_id' => $level1_upline_id,
+                    'amount' => $level1_commission,
+                    'percentage' => $level1_percentage * 100
                 ];
 
-                // Move to next upline
-                $current_user_id = $upline_id;
+                // Get Level 2 Upline (Level 1's Upline)
+                $qry_level2 = "SELECT upline_id FROM users WHERE id = ? AND upline_id IS NOT NULL LIMIT 1";
+                $stmt_level2 = mysqli_prepare($conn, $qry_level2);
+                mysqli_stmt_bind_param($stmt_level2, "i", $level1_upline_id);
+                mysqli_stmt_execute($stmt_level2);
+                $result_level2 = mysqli_stmt_POST_result($stmt_level2);
+                $level2_upline = mysqli_fetch_assoc($result_level2);
+                mysqli_stmt_close($stmt_level2);
+
+                if ($level2_upline && !empty($level2_upline['upline_id'])) {
+                    $level2_upline_id = (int)$level2_upline['upline_id'];
+
+                    // Give Level 2 Commission (20%)
+                    $update_level2_sql = "UPDATE users SET balance = balance + ?, total_commission = COALESCE(total_commission, 0) + ?, updated_at = NOW() WHERE id = ?";
+                    $stmt_update_level2 = mysqli_prepare($conn, $update_level2_sql);
+                    mysqli_stmt_bind_param($stmt_update_level2, "ddi", $level2_commission, $level2_commission, $level2_upline_id);
+
+                    if (!mysqli_stmt_execute($stmt_update_level2)) {
+                        throw new Exception("Failed to update level 2 upline balance");
+                    }
+                    mysqli_stmt_close($stmt_update_level2);
+
+                    // Insert transaction for Level 2
+                    $insert_level2_sql = "INSERT INTO transaction (order_id, user_id, balance, status, created_at) 
+                                         VALUES (?, ?, ?, 1, ?)";
+                    $stmt_insert_level2 = mysqli_prepare($conn, $insert_level2_sql);
+                    mysqli_stmt_bind_param(
+                        $stmt_insert_level2,
+                        "sids",
+                        $transaction_id,
+                        $level2_upline_id,
+                        $level2_commission,
+                        $created_at
+                    );
+                    mysqli_stmt_execute($stmt_insert_level2);
+                    mysqli_stmt_close($stmt_insert_level2);
+
+                    $commission_data[] = [
+                        'level' => 2,
+                        'upline_id' => $level2_upline_id,
+                        'amount' => $level2_commission,
+                        'percentage' => $level2_percentage * 100
+                    ];
+
+                    // Get Level 3 Upline (Level 2's Upline)
+                    $qry_level3 = "SELECT upline_id FROM users WHERE id = ? AND upline_id IS NOT NULL LIMIT 1";
+                    $stmt_level3 = mysqli_prepare($conn, $qry_level3);
+                    mysqli_stmt_bind_param($stmt_level3, "i", $level2_upline_id);
+                    mysqli_stmt_execute($stmt_level3);
+                    $result_level3 = mysqli_stmt_POST_result($stmt_level3);
+                    $level3_upline = mysqli_fetch_assoc($result_level3);
+                    mysqli_stmt_close($stmt_level3);
+
+                    if ($level3_upline && !empty($level3_upline['upline_id'])) {
+                        $level3_upline_id = (int)$level3_upline['upline_id'];
+
+                        // Give Level 3 Commission (10%)
+                        $update_level3_sql = "UPDATE users SET balance = balance + ?, total_commission = COALESCE(total_commission, 0) + ?, updated_at = NOW() WHERE id = ?";
+                        $stmt_update_level3 = mysqli_prepare($conn, $update_level3_sql);
+                        mysqli_stmt_bind_param($stmt_update_level3, "ddi", $level3_commission, $level3_commission, $level3_upline_id);
+
+                        if (!mysqli_stmt_execute($stmt_update_level3)) {
+                            throw new Exception("Failed to update level 3 upline balance");
+                        }
+                        mysqli_stmt_close($stmt_update_level3);
+
+                        // Insert transaction for Level 3
+                        $insert_level3_sql = "INSERT INTO transaction (order_id, user_id, balance, status, created_at) 
+                                             VALUES (?, ?, ?, 1, ?)";
+                        $stmt_insert_level3 = mysqli_prepare($conn, $insert_level3_sql);
+                        mysqli_stmt_bind_param(
+                            $stmt_insert_level3,
+                            "sids",
+                            $transaction_id,
+                            $level3_upline_id,
+                            $level3_commission,
+                            $created_at
+                        );
+                        mysqli_stmt_execute($stmt_insert_level3);
+                        mysqli_stmt_close($stmt_insert_level3);
+
+                        $commission_data[] = [
+                            'level' => 3,
+                            'upline_id' => $level3_upline_id,
+                            'amount' => $level3_commission,
+                            'percentage' => $level3_percentage * 100
+                        ];
+                    }
+                }
             }
 
             // 10. Commit all changes
@@ -268,18 +324,18 @@ try {
             // 11. Send success email
             sendSuccessEmail($user, $transaction_id, $transaction_amount, $commission_data);
 
-            // 12. Update session with new balance (get fresh data)
+            // 12. Update session with current balance
             $get_balance_qry = "SELECT balance FROM users WHERE id = ?";
             $stmt_balance = mysqli_prepare($conn, $get_balance_qry);
             mysqli_stmt_bind_param($stmt_balance, "i", $user_id);
             mysqli_stmt_execute($stmt_balance);
-            $balance_result = mysqli_stmt_get_result($stmt_balance);
+            $balance_result = mysqli_stmt_POST_result($stmt_balance);
             $balance_data = mysqli_fetch_assoc($balance_result);
             $_SESSION['balance'] = $balance_data['balance'] ?? $user['balance'];
             mysqli_stmt_close($stmt_balance);
 
             // 13. Log success
-            logError("Payment SUCCESS - Transaction: $transaction_id, User: $user_id, Amount: $transaction_amount, Balance Updated: " . $_SESSION['balance'], $conn);
+            logError("Payment SUCCESS - Transaction: $transaction_id, User: $user_id, Amount: $transaction_amount, Commission Distributed: " . count($commission_data) . " levels", $conn);
         } catch (Exception $e) {
             // Rollback on error
             mysqli_rollback($conn);
@@ -419,7 +475,7 @@ HTML;
 // Display status page
 $is_success = ($payment_code ?? '') === PAYMENT_SUCCESS_CODE;
 $display_amount = $transaction_amount ?? 0;
-$display_transaction_id = $transaction_id ?? ($_GET['transactionId'] ?? 'N/A');
+$display_transaction_id = $transaction_id ?? ($_POST['transactionId'] ?? 'N/A');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -543,31 +599,69 @@ $display_transaction_id = $transaction_id ?? ($_GET['transactionId'] ?? 'N/A');
             color: #333;
         }
 
-        .user-balance {
-            background: <?php echo $is_success ? '#e8f5e9' : '#f8d7da'; ?>;
-            border-left: 4px solid <?php echo $is_success ? '#28a745' : '#dc3545'; ?>;
-            padding: 20px;
-            border-radius: 8px;
+        .commission-chain {
+            background: #e8f4fd;
+            border: 2px solid #007bff;
+            border-radius: 10px;
+            padding: 25px;
             margin: 25px 0;
+        }
+
+        .chain-title {
+            color: #007bff;
+            font-weight: 700;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 20px;
+        }
+
+        .chain-levels {
             display: flex;
+            justify-content: space-between;
             align-items: center;
+            position: relative;
         }
 
-        .balance-icon {
-            font-size: 30px;
-            margin-right: 15px;
-            color: <?php echo $is_success ? '#28a745' : '#dc3545'; ?>;
+        .chain-levels::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 10%;
+            right: 10%;
+            height: 2px;
+            background: #007bff;
+            z-index: 1;
         }
 
-        .balance-info h4 {
+        .level-box {
+            background: white;
+            border: 2px solid #007bff;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            width: 30%;
+            position: relative;
+            z-index: 2;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .level-number {
+            font-size: 14px;
+            color: #666;
             margin-bottom: 5px;
-            color: #333;
         }
 
-        .balance-amount {
-            font-size: 24px;
+        .level-amount {
+            font-size: 18px;
             font-weight: 900;
-            color: <?php echo $is_success ? '#28a745' : '#dc3545'; ?>;
+            color: #28a745;
+            margin: 5px 0;
+        }
+
+        .level-percentage {
+            font-size: 16px;
+            color: #007bff;
+            font-weight: 600;
         }
 
         .action-section {
@@ -588,19 +682,6 @@ $display_transaction_id = $transaction_id ?? ($_GET['transactionId'] ?? 'N/A');
             cursor: pointer;
         }
 
-        .btn-primary {
-            background: #007bff;
-            color: white;
-            border: 2px solid #007bff;
-        }
-
-        .btn-primary:hover {
-            background: #0056b3;
-            border-color: #0056b3;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 123, 255, 0.3);
-        }
-
         .btn-success {
             background: #28a745;
             color: white;
@@ -614,6 +695,19 @@ $display_transaction_id = $transaction_id ?? ($_GET['transactionId'] ?? 'N/A');
             box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
         }
 
+        .btn-primary {
+            background: #007bff;
+            color: white;
+            border: 2px solid #007bff;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+            border-color: #0056b3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 123, 255, 0.3);
+        }
+
         .btn-outline {
             background: transparent;
             color: #6c757d;
@@ -624,45 +718,6 @@ $display_transaction_id = $transaction_id ?? ($_GET['transactionId'] ?? 'N/A');
             background: #6c757d;
             color: white;
             transform: translateY(-2px);
-        }
-
-        .commission-details {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            border-radius: 10px;
-            padding: 20px;
-            margin-top: 25px;
-        }
-
-        .commission-title {
-            color: #856404;
-            font-weight: 700;
-            margin-bottom: 15px;
-            font-size: 18px;
-        }
-
-        .commission-levels {
-            display: flex;
-            justify-content: space-around;
-            flex-wrap: wrap;
-        }
-
-        .level-item {
-            text-align: center;
-            padding: 15px;
-            min-width: 150px;
-        }
-
-        .level-number {
-            font-size: 14px;
-            color: #666;
-        }
-
-        .level-amount {
-            font-size: 20px;
-            font-weight: 900;
-            color: #28a745;
-            margin: 5px 0;
         }
 
         .redirect-notice {
@@ -687,23 +742,23 @@ $display_transaction_id = $transaction_id ?? ($_GET['transactionId'] ?? 'N/A');
                 grid-template-columns: 1fr;
             }
 
+            .chain-levels {
+                flex-direction: column;
+            }
+
+            .chain-levels::before {
+                display: none;
+            }
+
+            .level-box {
+                width: 100%;
+                margin-bottom: 15px;
+            }
+
             .btn {
                 display: block;
                 width: 100%;
                 margin: 10px 0;
-            }
-
-            .commission-levels {
-                flex-direction: column;
-            }
-
-            .level-item {
-                min-width: 100%;
-                border-bottom: 1px solid #ffeaa7;
-            }
-
-            .level-item:last-child {
-                border-bottom: none;
             }
         }
     </style>
@@ -752,66 +807,57 @@ $display_transaction_id = $transaction_id ?? ($_GET['transactionId'] ?? 'N/A');
                 </div>
             </div>
 
-            <?php if ($is_success && isset($_SESSION['balance'])): ?>
-                <div class="user-balance">
-                    <div class="balance-icon">
-                        <i class="fas fa-wallet"></i>
-                    </div>
-                    <div class="balance-info">
-                        <h4>Your Current Balance</h4>
-                        <div class="balance-amount">
-                            ₹<?php echo number_format($_SESSION['balance'], 2); ?>
-                        </div>
-                        <p style="color:#666;font-size:14px;margin-top:5px;">
-                            Plan amount + Commissions (if any)
-                        </p>
-                    </div>
-                </div>
-            <?php endif; ?>
-
-            <?php if ($is_success && isset($level1_commission) && $level1_commission > 0): ?>
-                <div class="commission-details">
-                    <h4 class="commission-title"><i class="fas fa-share-alt"></i> Commission Distribution</h4>
-                    <div class="commission-levels">
-                        <div class="level-item">
-                            <div class="level-number">Level 1 Commission</div>
+            <?php if ($is_success && isset($level1_commission)): ?>
+                <div class="commission-chain">
+                    <h4 class="chain-title"><i class="fas fa-network-wired"></i> Commission Distribution Chain</h4>
+                    <div class="chain-levels">
+                        <div class="level-box">
+                            <div class="level-number">Level 1 (Direct)</div>
                             <div class="level-amount">₹<?php echo number_format($level1_commission ?? 0, 2); ?></div>
                             <div class="level-percentage"><?php echo ($level1_percentage ?? 0) * 100; ?>%</div>
+                            <div style="font-size:12px;color:#666;margin-top:5px;">
+                                <?php echo isset($level1_upline_id) ? "Upline ID: $level1_upline_id" : "No upline found"; ?>
+                            </div>
                         </div>
-                        <?php if (($level2_commission ?? 0) > 0): ?>
-                            <div class="level-item">
-                                <div class="level-number">Level 2 Commission</div>
-                                <div class="level-amount">₹<?php echo number_format($level2_commission ?? 0, 2); ?></div>
-                                <div class="level-percentage"><?php echo ($level2_percentage ?? 0) * 100; ?>%</div>
+                        <div class="level-box">
+                            <div class="level-number">Level 2 (Indirect)</div>
+                            <div class="level-amount">₹<?php echo number_format($level2_commission ?? 0, 2); ?></div>
+                            <div class="level-percentage"><?php echo ($level2_percentage ?? 0) * 100; ?>%</div>
+                            <div style="font-size:12px;color:#666;margin-top:5px;">
+                                <?php echo isset($level2_upline_id) ? "Upline ID: $level2_upline_id" : "No upline found"; ?>
                             </div>
-                        <?php endif; ?>
-                        <?php if (($level3_commission ?? 0) > 0): ?>
-                            <div class="level-item">
-                                <div class="level-number">Level 3 Commission</div>
-                                <div class="level-amount">₹<?php echo number_format($level3_commission ?? 0, 2); ?></div>
-                                <div class="level-percentage"><?php echo ($level3_percentage ?? 0) * 100; ?>%</div>
+                        </div>
+                        <div class="level-box">
+                            <div class="level-number">Level 3 (Indirect)</div>
+                            <div class="level-amount">₹<?php echo number_format($level3_commission ?? 0, 2); ?></div>
+                            <div class="level-percentage"><?php echo ($level3_percentage ?? 0) * 100; ?>%</div>
+                            <div style="font-size:12px;color:#666;margin-top:5px;">
+                                <?php echo isset($level3_upline_id) ? "Upline ID: $level3_upline_id" : "No upline found"; ?>
                             </div>
-                        <?php endif; ?>
+                        </div>
                     </div>
+                    <p style="text-align:center;margin-top:15px;color:#666;font-size:14px;">
+                        Commission chain breaks if any upline is not found
+                    </p>
                 </div>
             <?php endif; ?>
 
             <div class="action-section">
                 <?php if ($is_success): ?>
-                    <a href="/dashboard" class="btn btn-success">
+                    <a href="/setting.php" class="btn btn-success">
                         <i class="fas fa-tachometer-alt"></i> Go to Dashboard
                     </a>
-                    <a href="/profile" class="btn btn-primary">
+                    <a href="/setting.php" class="btn btn-primary">
                         <i class="fas fa-user"></i> View Profile
                     </a>
-                    <a href="/referral" class="btn btn-outline">
+                    <a href="/setting.php" class="btn btn-outline">
                         <i class="fas fa-users"></i> Refer & Earn
                     </a>
                 <?php else: ?>
-                    <a href="/pricing" class="btn btn-primary">
+                    <a href="/plan.php" class="btn btn-primary">
                         <i class="fas fa-redo"></i> Try Again
                     </a>
-                    <a href="/contact" class="btn btn-outline">
+                    <a href="/contact.php" class="btn btn-outline">
                         <i class="fas fa-headset"></i> Contact Support
                     </a>
                 <?php endif; ?>
@@ -826,42 +872,30 @@ $display_transaction_id = $transaction_id ?? ($_GET['transactionId'] ?? 'N/A');
 
     <script>
         // Auto-redirect after countdown
-        // let countdown = 10;
-        // const countdownElement = document.getElementById('countdown');
+        let countdown = 10;
+        const countdownElement = document.getElementById('countdown');
 
-        // const countdownInterval = setInterval(() => {
-        //     countdown--;
-        //     countdownElement.textContent = countdown;
+        const countdownInterval = setInterval(() => {
+            countdown--;
+            countdownElement.textContent = countdown;
 
-        //     if (countdown <= 0) {
-        //         clearInterval(countdownInterval);
-        //         <?php if ($is_success): ?>
-        //             window.location.href = '/dashboard';
-        //         <?php else: ?>
-        //             window.location.href = '/';
-        //         <?php endif; ?>
-        //     }
-        // }, 1000);
+            if (countdown <= 0) {
+                clearInterval(countdownInterval);
+                <?php if ($is_success): ?>
+                    window.location.href = '/dashboard';
+                <?php else: ?>
+                    window.location.href = '/';
+                <?php endif; ?>
+            }
+        }, 1000);
 
-        // // Manual redirect override
-        // document.querySelectorAll('.btn').forEach(button => {
-        //     button.addEventListener('click', function(e) {
-        //         clearInterval(countdownInterval);
-        //         countdownElement.textContent = '0';
-        //     });
-        // });
-
-        // // Add animation to balance amount
-        // <?php if ($is_success && isset($_SESSION['balance'])): ?>
-        // setTimeout(() => {
-        //     document.querySelector('.balance-amount').style.transform = 'scale(1.1)';
-        //     document.querySelector('.balance-amount').style.transition = 'transform 0.5s ease';
-
-        //     setTimeout(() => {
-        //         document.querySelector('.balance-amount').style.transform = 'scale(1)';
-        //     }, 500);
-        // }, 1000);
-        <?php endif; ?>
+        // Manual redirect override
+        document.querySelectorAll('.btn').forEach(button => {
+            button.addEventListener('click', function(e) {
+                clearInterval(countdownInterval);
+                countdownElement.textContent = '0';
+            });
+        });
     </script>
 </body>
 
