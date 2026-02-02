@@ -115,8 +115,6 @@ if (isset($_POST['add'])) {
                 image = '$image_new_name',
                 banner = '$banner_new_name',
                 status = '$status',
-                starting_date = '$starting_date',
-                end_date = '$end_date',
                 district='$district',
                 fb_link='$fb_link',
                 insta_link='$insta_link'
@@ -130,8 +128,8 @@ if (isset($_POST['add'])) {
         }
     } else {
         // Construct SQL query to insert data into the database
-        $query = "INSERT INTO vendor (user_id,  name, store_name, contact, email, street, city_id, state_id, country_id, zipcode, desc_1, desc_2, discount_id, delivery_status, created_by, modified_by, image, banner, status,  starting_date, end_date, district, insta_link, fb_link)
-                    VALUES ('$user_id', '$name', '$store_name', '$contact', '$email', '$street', '$city_id', '$state_id', '$country_id', '$zipcode', '$desc_1', '$desc_2', '$discount_id', '$delivery_status', '$created_by', '$modified_by', '$image_new_name', '$banner_new_name', '$status', '$starting_date', '$end_date', '$district', '$insta_link', '$fb_link')";
+        $query = "INSERT INTO vendor (user_id,  name, store_name, contact, email, street, city_id, state_id, country_id, zipcode, desc_1, desc_2, discount_id, delivery_status, created_by, modified_by, image, banner, status,  district, insta_link, fb_link)
+                    VALUES ('$user_id', '$name', '$store_name', '$contact', '$email', '$street', '$city_id', '$state_id', '$country_id', '$zipcode', '$desc_1', '$desc_2', '$discount_id', '$delivery_status', '$created_by', '$modified_by', '$image_new_name', '$banner_new_name', '$status', '$district', '$insta_link', '$fb_link')";
 
         // Execute query
         if (mysqli_query($conn, $query)) {

@@ -177,18 +177,7 @@
 							</select>
 						</div>
 						<input type="hidden" class="btn-check" value="1" name="delivery" id="btnradio1">
-						<div class="col-xl-3 col-lg-4 col-md-6">
-							<label class="form-label ">Start Date</label>
-							<input type="date" class="form-control form-control-lg" name="s_date" value="<?php if (!empty($vendor_row['starting_date'])) {
-																												echo $vendor_row['starting_date'];
-																											} ?>" placeholder="">
-						</div>
-						<div class="col-xl-3 col-lg-4 col-md-6">
-							<label class="form-label ">End Date</label>
-							<input type="date" class="form-control form-control-lg" name="e_date" placeholder="" value="<?php if (!empty($vendor_row['end_date'])) {
-																															echo $vendor_row['end_date'];
-																														} ?>">
-						</div>
+
 						<div class="col-12 row">
 							<div class="col-12 col-md-12 col-lg-6">
 								<label class="col-form-label">Discount terms & condition</label>
