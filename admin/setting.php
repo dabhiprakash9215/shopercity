@@ -145,6 +145,7 @@ $plan_prices     =   $commission['plan_price'];
                                     </div>
                                     <div class="card-body bg-light">
                                         <div class="text-danger mb-2">
+                                            <label><strong>Plan Price </strong></label>
                                             <input type="number" class="form-control plan_price" name="plan_price" value="<?= $plan_price ?>">
                                         </div>
                                     </div>
