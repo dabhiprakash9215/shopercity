@@ -106,16 +106,10 @@
 																												echo $vendor_row['street'];
 																											} ?>">
 						</div>
-						<div class="col-xl-3 col-lg-6 col-sm-6">
-							<label class="form-label">City</label>
-							<input type="text" class="form-control form-control-lg" name="city" value="<?php if (!empty($vendor_row['city_id'])) {
-																											echo $vendor_row['city_id'];
-																										} ?>">
-						</div>
+
 						<div class="col-xl-3 col-lg-4 col-md-6">
 							<label class="form-label">State</label>
-
-							<select name="state" required class="form-select form-control-lg">
+							<select name="state" id="state-select" required class="form-select form-control-lg">
 								<option value="">Select State</option>
 								<?php
 								$state_qry = "SELECT * FROM state";
@@ -126,26 +120,22 @@
 								?>
 							</select>
 						</div>
+
 						<div class="col-xl-3 col-lg-4 col-md-6">
 							<label class="form-label">District</label>
-							<select name="district" required class="form-select form-control-lg">
+							<select name="district" id="district-select" required class="form-select form-control-lg">
 								<option value="">Select District</option>
 							</select>
 						</div>
-						<div class="col-xl-3 col-lg-4 col-md-6">
-							<label class="form-label">Country</label>
-							<select class="form-select form-control-lg" name="country">
-								<?php
-								while ($row   =   mysqli_fetch_assoc($country)) {
-								?>
-									<option value="<?php echo $row['id']; ?>" <?php if (!empty($vendor_row['country_id']) && $row['id']	==  $vendor_row['country_id']) {
-																					echo "selected";
-																				} ?>><?php echo $row['name']; ?></option>
-								<?php
-								}
-								?>
+
+						<div class="col-xl-3 col-lg-6 col-sm-6">
+							<label class="form-label">City</label>
+							<select name="city" id="city-select" required class="form-select form-control-lg">
+								<option value="">Select City</option>
 							</select>
+
 						</div>
+
 						<div class="col-xl-3 col-lg-4 col-md-6">
 							<label class="form-label">Zipcode</label>
 							<input type="number" class="form-control form-control-lg" placeholder="" name="zipcode" value="<?php if (!empty($vendor_row['zipcode'])) {
@@ -519,38 +509,65 @@
 		});
 
 		$(document).ready(function() {
-			$('select[name="state"]').on('change', function() {
-				var stateCode = $(this).val();
+			// $('select[name="state"]').on('change', function() {
+			// 	var stateCode = $(this).val();
 
-				if (stateCode !== "") {
-					$.ajax({
-						url: '../get_state.php', // ✅ Set correct file path here
-						type: 'POST',
-						data: {
-							state: stateCode
-						},
-						dataType: 'json',
-						success: function(response) {
-							let $districtSelect = $('select[name="district"]');
-							$districtSelect.empty();
+			// 	if (stateCode !== "") {
+			// 		$.ajax({
+			// 			url: '../get_state.php', // ✅ Set correct file path here
+			// 			type: 'POST',
+			// 			data: {
+			// 				state: stateCode
+			// 			},
+			// 			dataType: 'json',
+			// 			success: function(response) {
+			// 				let $districtSelect = $('select[name="district"]');
+			// 				$districtSelect.empty();
 
-							if (response.length > 0) {
-								$districtSelect.append('<option value="">Select District</option>');
-								$.each(response, function(index, districtName) {
-									$districtSelect.append('<option value="' + districtName + '">' + districtName + '</option>');
-								});
-							} else {
-								$districtSelect.append('<option value="">No Districts Found</option>');
-							}
-						},
-						error: function() {
-							alert("Failed to fetch districts.");
-						}
-					});
-				} else {
-					$('select[name="district"]').empty().append('<option value="">Select District</option>');
-				}
+			// 				if (response.length > 0) {
+			// 					$districtSelect.append('<option value="">Select District</option>');
+			// 					$.each(response, function(index, districtName) {
+			// 						$districtSelect.append('<option value="' + districtName + '">' + districtName + '</option>');
+			// 					});
+			// 				} else {
+			// 					$districtSelect.append('<option value="">No Districts Found</option>');
+			// 				}
+			// 			},
+			// 			error: function() {
+			// 				alert("Failed to fetch districts.");
+			// 			}
+			// 		});
+			// 	} else {
+			// 		$('select[name="district"]').empty().append('<option value="">Select District</option>');
+			// 	}
+			// });
+
+			$('#state-select').on('change', function() {
+				$('#district-select').html('<option>Loading...</option>').prop('disabled', true);
+				$('#city-select').prop('disabled', true);
+
+				$.post('../db/get_districts.php', {
+					state_id: this.value
+				}, html => {
+					$('#district-select').html(html).prop('disabled', false);
+				});
 			});
+
+			$('#district-select').on('change', function() {
+				$('#city-select').html('<option>Loading...</option>').prop('disabled', true);
+
+				$.post('../db/get_cities.php', {
+					district_id: this.value
+				}, html => {
+					$('#city-select').html(html).prop('disabled', false);
+				});
+			});
+
+			$('#city-select').on('change', function() {
+				confirmLocationBtn.disabled = false;
+			});
+
+
 		});
 	</script>
 </body>
