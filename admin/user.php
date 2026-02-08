@@ -176,7 +176,7 @@ $i = 0;
                                     Mobile
                                 </th>
                                 <th style="width: 20%">
-                                    Address
+                                    Bio
                                 </th>
                                 <th style="width: 100px">
                                     Vendor

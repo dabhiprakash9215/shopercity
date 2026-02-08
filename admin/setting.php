@@ -7,7 +7,6 @@ if (isset($_POST['update_commission'])) {
     $level1 = (float) $_POST['level1'];
     $level2 = (float) $_POST['level2'];
     $level3 = (float) $_POST['level3'];
-    $plan_price = (float) $_POST['plan_price'];
 
     if ($level1 < 0 || $level2 < 0 || $level3 < 0) {
         echo "<div class='alert alert-danger'>Commission cannot be negative</div>";
@@ -142,12 +141,6 @@ $plan_prices     =   $commission['plan_price'] ?? 0;
                                     <div class="card-body bg-light">
                                         <label><strong>Admin Commission (%)</strong></label>
                                         <input type="text" class="form-control" id="adminCommission" readonly value="<?= $admin ?>">
-                                    </div>
-                                    <div class="card-body bg-light">
-                                        <div class="text-danger mb-2">
-                                            <label><strong>Plan Price </strong></label>
-                                            <input type="number" class="form-control plan_price" name="plan_price" value="<?= $plan_price ?>">
-                                        </div>
                                     </div>
 
                                     <div class="card-body">

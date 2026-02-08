@@ -30,11 +30,48 @@ if (isset($_GET['shop_id'])) {
 // 	header('Location:index.php');
 // }
 $row5 = [];
+$parts = [];
 if (isset($_GET['cat_id'])) {
 	$id = $_GET['cat_id'];
 	$qry5 = "SELECT name FROM category WHERE id=$id";
 	$res5 = mysqli_query($conn, $qry5);
 	$row5 = mysqli_fetch_array($res5);
+
+	$qry2 = "SELECT name FROM state WHERE  id=" . $row['state_id'];
+	$res2 = mysqli_query($conn, $qry2);
+	$state = mysqli_fetch_assoc($res2);
+	// print_r($state);
+	// die;
+
+
+	$qry3 = "SELECT district_name FROM districts WHERE  id=" . $row['district'];
+	$res3 = mysqli_query($conn, $qry3);
+	$district = mysqli_fetch_assoc($res3);
+	// print_r($district);
+	// die;
+
+	$qry4 = "SELECT name FROM city WHERE  id=" . $row['city_id'];
+	$res4 = mysqli_query($conn, $qry4);
+	$city = mysqli_fetch_assoc($res4);
+
+
+
+	if (!empty($city['name'])) {
+		$parts[] = $city['name'];
+	}
+	if (!empty($district['district_name'])) {
+		$parts[] = $district['district_name'];
+	}
+	if (!empty($state['name'])) {
+		$parts[] = $state['name'];
+	}
+
+	$socialLinks = [
+		['icon' => 'facebook', 'color' => 'blue', 'label' => 'fb_link'],
+		['icon' => 'instagram', 'color' => 'pink', 'label' => 'insta_link'],
+		['icon' => 'youtube', 'color' => 'red', 'label' => 'yt_link'],
+		['icon' => 'link', 'color' => 'green', 'label' => 'website_link'],
+	];
 }
 ?>
 <!DOCTYPE html>
@@ -65,10 +102,10 @@ if (isset($_GET['cat_id'])) {
 					<div class="flex md:hidden flex-wrap items-center justify-between my-5">
 						<ul class="breadcrumb breadcrumb-lg">
 							<li><a href="index.php"><i class="d-icon-home"></i></a></li>
-							<?php if(!empty($row['name'])){ ?><li><a href="vendor.php?cat_id=<?php if (isset($_GET['cat_id'])) {
-																echo $_GET['cat_id'];
-															} ?>" class="active"><?php echo $row5['name']; ?></a></li>
-															<?php } ?>
+							<?php if (!empty($row['name'])) { ?><li><a href="vendor.php?cat_id=<?php if (isset($_GET['cat_id'])) {
+																									echo $_GET['cat_id'];
+																								} ?>" class="active"><?php echo $row5['name']; ?></a></li>
+							<?php } ?>
 							<li>
 								<?php echo $row['store_name']; ?>
 							</li>
@@ -97,86 +134,95 @@ if (isset($_GET['cat_id'])) {
 								<div class="hidden md:flex flex-wrap items-center justify-between pb-2">
 									<ul class="breadcrumb breadcrumb-lg">
 										<li><a href="demo1.html"><i class="d-icon-home"></i></a></li>
-										<?php if(!empty($row['name'])){ ?><li><a href="vendor.php?cat_id=<?php if (isset($_GET['cat_id'])) {
-																echo $_GET['cat_id'];
-															} ?>" class="active"><?php echo $row5['name']; ?></a></li>
-															<?php } ?>
+										<?php if (!empty($row['name'])) { ?><li><a href="vendor.php?cat_id=<?php if (isset($_GET['cat_id'])) {
+																												echo $_GET['cat_id'];
+																											} ?>" class="active"><?php echo $row5['name']; ?></a></li>
+										<?php } ?>
 										<li> <?php echo $row['store_name']; ?> </li>
 									</ul>
 								</div>
 								<div>
 									<div class="!text-[3rem] text-black mb-0">
-										<?php echo $row['store_name']; ?>
-									</h1>
-								</div>
-								<div class="text-xl font-medium">
-									<div class="text-gray-700 flex gap-2">
-										<div class="text-2xl">
-											<i class="d-icon-map-marker"></i>
-											<?php echo $row['street']; ?>,
-											<?php
-											echo $row['city_id'];
-											if ($row['state_id']) {
-												$qry = "SELECT name FROM state WHERE id =" . $row['state_id'];
-												$res = mysqli_query($conn, $qry);
-												$state = mysqli_fetch_array($res);
-												echo ', ' . $state['name'];
-											}
-											echo ' - ' . $row['zipcode'];
-											?>
-										</div>
+										<h1>
+											<?php echo $row['store_name']; ?>
+										</h1>
 									</div>
-									<div class="border border-gray-300 p-5 shadow-lg mt-4 rounded-lg">
-										<div class="text-[#2266cc] text-4xl text-center my-5">
-											<i class="fas fa-tag"></i> <?php echo $row1['name']; ?>
+									<div class="!text-[3rem] text-black mb-0">
+										<h6>
+											<?php echo $row['bio']; ?>
+										</h6>
+									</div>
+									<div class="!text-[#666] text-2xl mt-2">
+										<?php echo $row['desc_1']; ?>
+									</div>
+									<div class="text-xl font-medium">
+										<div class="text-gray-700 flex gap-2">
+											<div class="text-2xl">
+												<i class="d-icon-map-marker"></i>
+												<?php echo implode(', ', $parts); ?>
+											</div>
+										</div>
+										<div class="border border-gray-300 p-5 shadow-lg mt-4 rounded-lg">
+											<div class="text-[#2266cc] text-4xl text-center my-5">
+												<i class="fas fa-tag"></i> <?php echo $row1['name']; ?>
+											</div>
 										</div>
 
-										<div class="!text-[#666] text-2xl mt-2">
-											<?php echo $row['desc_1']; ?>
-										</div>
 									</div>
-								</div>
-								<div class="border bg-[#2266cc] p-6 text-white rounded-md flex flex-col gap-2  mt-2">
-									<span>
-										<i class="d-icon-user"></i>
-										<?= $row['name']; ?>
-									</span>
-									<a class="text-white text-2xl" href="tel:<?php echo $row['contact']; ?>" class="product-meta">
-										<i class="d-icon-phone"></i>
-										<span class="product-brand"><?php echo $row['contact']; ?></span>
-									</a>
-								</div>
-								<?php
-								if (!empty($_SESSION['is_active']) && 	$_SESSION['is_active'] == 1) {
-								?>
-									<div class="product-meta">
-										<div>SHARE: <a href="javascript:void(0)" id="shareButton"><img src="images/icons/share-icon.png" width="25" class="ml-2"></a></div>
+									<div class="border bg-[#2266cc] p-6 text-white rounded-md flex flex-col gap-2  mt-2">
+										<span>
+											<i class="d-icon-user"></i>
+											<?= $row['name']; ?>
+										</span>
+										<a class="text-white text-2xl" href="tel:<?php echo $row['contact']; ?>" class="product-meta">
+											<i class="d-icon-phone"></i>
+											<span class="product-brand"><?php echo $row['contact']; ?></span>
+										</a>
 									</div>
-								<?php } ?>
-								<!-- <p class="product-short-desc">
-								</p> -->
-								<hr class="product-divider">
+
+									<div class="d-flex">
+										<a href="javascript:void(0)" id="shareButton"><img src="images/icons/share-icon.png" width="20" class="mx-2 mt-2 my-2"></a>
+										<?php foreach ($socialLinks as $key => $social): ?>
+											<?php if (!empty($row[$social['label']])): ?>
+												<a href="<?= $row[$social['label']] ?>" target="_blank"
+													class="flex flex-col items-center justify-center h-full p-2 bg-light rounded mx-2 bg-<?= $social['color'] ?>-900 mx-2 my-2">
+													<?php
+													if ($social['label'] == 'website_link') {
+													?>
+														<img src="images/link.png" alt="" srcset="" width="25">
+													<?php
+													} else {
+													?>
+														<i class="fab fa-<?= $social['icon'] ?> text-3xl text-<?= $social['color'] ?>-500 "></i>
+													<?php
+													}
+													?>
+												</a>
+											<?php endif; ?>
+										<?php endforeach; ?>
+									</div>
+
+								</div>
 							</div>
 						</div>
-					</div>
-					<div class="tab tab-nav-simple product-tabs mb-4">
-						<ul class="nav nav-tabs justify-content-center" role="tablist">
-							<li class="nav-item">
-								<a class="nav-link active" href="#product-tab-description">Product Or Services</a>
-							</li>
-						</ul>
-						<div class="tab-content">
-							<div class="tab-pane active in" id="product-tab-description">
-								<div class="row mt-12">
-									<div class="col-md-12">
-										<?php echo $row['desc_2']; ?>
+						<div class="tab tab-nav-simple product-tabs mb-4">
+							<ul class="nav nav-tabs justify-content-center" role="tablist">
+								<li class="nav-item">
+									<a class="nav-link active" href="#product-tab-description">Product Or Services</a>
+								</li>
+							</ul>
+							<div class="tab-content">
+								<div class="tab-pane active in" id="product-tab-description">
+									<div class="row mt-12">
+										<div class="col-md-12">
+											<?php echo $row['desc_2']; ?>
+										</div>
 									</div>
 								</div>
 							</div>
 						</div>
 					</div>
 				</div>
-			</div>
 		</main>
 		<?php
 		require_once "include/footer.php";

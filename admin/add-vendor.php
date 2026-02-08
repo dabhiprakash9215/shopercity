@@ -11,7 +11,7 @@ if (isset($_GET['id']) && $_GET['id'] != '') {
 	$email = $user->getField($_GET['id'], 'vendor', 'email');
 	$v_username = $user->getField($_GET['id'], 'vendor', 'username');
 	$v_password = $user->getField($_GET['id'], 'vendor', 'password');
-	$street = $user->getField($_GET['id'], 'vendor', 'street');
+	$bio = $user->getField($_GET['id'], 'vendor', 'bio');
 	$zipcode = $user->getField($_GET['id'], 'vendor', 'zipcode');
 	$lat = $user->getField($_GET['id'], 'vendor', 'lat');
 	$long = $user->getField($_GET['id'], 'vendor', 'longitude');
@@ -47,7 +47,7 @@ if (isset($_GET['id']) && $_GET['id'] != '') {
 	$email = '';
 	$username1 = '';
 	$password1 = '';
-	$street = '';
+	$bio = '';
 	$zipcode = '';
 	$lat = '';
 	$long = '';
@@ -168,12 +168,22 @@ if (isset($_GET['id']) && $_GET['id'] != '') {
 											<input data-parsley-trigger="change" type="password" class="form-control" name="password" placeholder="" value="<?php echo $v_password; ?>">
 										</div> -->
 										<div class="form-group col-md-6">
-											<label for="exampleInputEmail1">Street</label>
-											<input required="" data-parsley-trigger="change" type="text" class="form-control" name="street" placeholder="" value="<?php echo $street; ?>">
+											<label for="exampleInputEmail1">Bio</label>
+											<input required="" data-parsley-trigger="change" type="text" class="form-control" name="bio" placeholder="" value="<?php echo $bio; ?>">
 										</div>
 										<div class="form-group col-md-6">
 											<label for="inputStatus">City</label>
-											<input type="text" name="city_id" id="" value="<?= $city; ?>" required="" data-parsley-trigger="change" type="text" class="form-control">
+											<!-- <input type="text" name="city_id" id="" value="<?= $city; ?>" required="" data-parsley-trigger="change" type="text" class="form-control"> -->
+											<select required="" data-parsley-trigger="change" id="inputStatus" name="state_id" class="form-control custom-select">
+												<option value=""> Select State</option>
+												<?php
+												$center = $conn->query("SELECT * FROM state");
+												while ($center_fetch = $center->fetch()) { ?>
+													<option <?php if ($state == $center_fetch['id']) {
+																echo 'selected="selected"';
+															} ?> value="<?php echo $center_fetch['id']; ?>"><?php echo $center_fetch['name']; ?></option>
+												<?php } ?>
+											</select>
 										</div>
 										<div class="form-group col-md-6">
 											<label for="inputStatus">State</label>
@@ -301,15 +311,6 @@ if (isset($_GET['id']) && $_GET['id'] != '') {
 													</label>
 												</div>
 											</div>
-										</div>
-										<div class="form-group col-md-6">
-											<label for="exampleInputEmail1">Starting Date</label>
-											<input required="" data-parsley-trigger="change" type="date" class="form-control" name="starting_date" value="<?= $starting_date ?>">
-										</div>
-										<div class="form-group col-md-6">
-											<label for="exampleInputEmail1">Ending Date</label>
-											<input required="" data-parsley-trigger="change" type="date" class="form-control" name="end_date"
-												value="<?= $end_date ?>">
 										</div>
 										<div class="from-group col-md-12">
 											<label for="exampleInputEmail1">Vendor Status</label>

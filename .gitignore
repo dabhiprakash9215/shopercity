@@ -1,2 +1,2 @@
-/db/connection.php
-/include/connection.php
+db/connection.php
+include/connection.php

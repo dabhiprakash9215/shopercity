@@ -102,9 +102,9 @@
 						</div>
 						<div class="col-xl-3 col-lg-4 col-md-6">
 							<label class="form-label">Bio</label>
-							<input type="text" class="form-control form-control-lg" name="street" value="<?php if (!empty($vendor_row['street'])) {
-																												echo $vendor_row['street'];
-																											} ?>">
+							<input type="text" class="form-control form-control-lg" name="bio" value="<?php if (!empty($vendor_row['bio'])) {
+																											echo $vendor_row['bio'];
+																										} ?>">
 						</div>
 
 						<div class="col-xl-3 col-lg-4 col-md-6">
@@ -207,9 +207,23 @@
 																														echo $vendor_row['insta_link'];
 																													} ?>">
 							</div>
+							<div class="col-12 col-md-12 col-lg-6">
+
+								<label class="col-form-label">Youtube Link</label>
+								<input type="text" class="form-control form-control-lg" name="yt_link" value="<?php if (!empty($vendor_row['yt_link'])) {
+																													echo $vendor_row['yt_link'];
+																												} ?>">
+							</div>
+							<div class="col-12 col-md-12 col-lg-6">
+
+								<label class="col-form-label">Website Link</label>
+								<input type="text" class="form-control form-control-lg" name="website_link" value="<?php if (!empty($vendor_row['website_link'])) {
+																														echo $vendor_row['website_link'];
+																													} ?>">
+							</div>
 						</div>
 						<div class="col-lg-6 col-12">
-							<label class="form-label ">Business Baner Upload </label>
+							<label class="form-label ">Business Banner Upload </label>
 							<div class="form-group">
 								<input type="file" name="banner" class="form-control" placeholder="">
 							</div>
@@ -557,8 +571,6 @@
 			$('#city-select').on('change', function() {
 				confirmLocationBtn.disabled = false;
 			});
-
-
 		});
 	</script>
 </body>

@@ -22,30 +22,33 @@ if (!defined('URL')) {
 }
 
 if (isset($_POST['add'])) {
+    // print_r($_POST);
+    // die;
     // Get POST data and sanitize inputs to avoid SQL injection
     // $category_id = mysqli_real_escape_string($conn, $_POST['category']);
     $name = mysqli_real_escape_string($conn, $_POST['v_name']);
     $store_name = mysqli_real_escape_string($conn, $_POST['store_name']);
     $contact = mysqli_real_escape_string($conn, $_POST['contact']);
     $email = mysqli_real_escape_string($conn, $_POST['email']);
-    $street = mysqli_real_escape_string($conn, $_POST['street']);
     $city_id = mysqli_real_escape_string($conn, $_POST['city']);
     $state_id = mysqli_real_escape_string($conn, $_POST['state']);
-    $country_id = mysqli_real_escape_string($conn, $_POST['country']);
     $zipcode = mysqli_real_escape_string($conn, $_POST['zipcode']);
     $desc_1 = mysqli_real_escape_string($conn, $_POST['desc_1']);
     $desc_2 = mysqli_real_escape_string($conn, $_POST['desc_2']); // assuming desc_2 is in POST data
     $discount_id = mysqli_real_escape_string($conn, $_POST['discount']);
     $district = mysqli_real_escape_string($conn, $_POST['district']);
     $delivery_status = mysqli_real_escape_string($conn, $_POST['delivery'] ? $_POST['delivery'] : 0);
-    $created_by = date("Y-m-d"); // You can replace with user or other context
+    $created_by = date("Y-m-d"); // You can replace with    user or other context
     $modified_by = date("Y-m-d");
     $image = '';  // Placeholder if you don't upload an image
     $banner = ''; // Placeholder if you don't upload a banner
-    $starting_date = mysqli_real_escape_string($conn, $_POST['s_date']);
-    $end_date = mysqli_real_escape_string($conn, $_POST['e_date']);
+    // $starting_date = mysqli_real_escape_string($conn, $_POST['s_date']);
+    // $end_date = mysqli_real_escape_string($conn, $_POST['e_date']);
     $fb_link = mysqli_real_escape_string($conn, $_POST['fb_link']);
     $insta_link = mysqli_real_escape_string($conn, $_POST['insta_link']);
+    $website_link = mysqli_real_escape_string($conn, $_POST['website_link']);
+    $yt_link = mysqli_real_escape_string($conn, $_POST['yt_link']);
+    $bio = mysqli_real_escape_string($conn, $_POST['bio']);
     $status = 0; // You can modify the status value based on your requirement
 
     // File upload logic for banner
@@ -98,27 +101,29 @@ if (isset($_POST['add'])) {
 
         // Perform the update with the new banner and image
         $update_query = "UPDATE vendor SET 
-                name = '$name',
-                store_name = '$store_name',
-                contact = '$contact',
-                email = '$email',
-                street = '$street',
-                city_id = '$city_id',
-                state_id = '$state_id',
-                country_id = '$country_id',
-                zipcode = '$zipcode',
-                desc_1 = '$desc_1',
-                desc_2 = '$desc_2',
-                discount_id = '$discount_id',
-                delivery_status = '$delivery_status',
-                modified_by = '$modified_by',
-                image = '$image_new_name',
-                banner = '$banner_new_name',
-                status = '$status',
-                district='$district',
-                fb_link='$fb_link',
-                insta_link='$insta_link'
-                WHERE user_id = '$user_id' AND id='$id'";
+                        name='$name',
+                        store_name='$store_name',
+                        contact='$contact',
+                        email='$email',
+                        city_id='$city_id',
+                        state_id='$state_id',
+                        zipcode='$zipcode',
+                        desc_1='$desc_1',
+                        desc_2='$desc_2',
+                        discount_id='$discount_id',
+                        delivery_status='$delivery_status',
+                        modified_by='$modified_by',
+                        image='$image_new_name',
+                        banner='$banner_new_name',
+                        status='$status',
+                        district='$district',
+                        fb_link='$fb_link',
+                        insta_link='$insta_link',
+                        website_link='$website_link',
+                        yt_link='$yt_link',
+                        bio='$bio'
+                    WHERE user_id='$user_id' AND id='$id'";
+
         // print_r($update_query);
         // die;
         if (mysqli_query($conn, $update_query)) {
@@ -128,8 +133,8 @@ if (isset($_POST['add'])) {
         }
     } else {
         // Construct SQL query to insert data into the database
-        $query = "INSERT INTO vendor (user_id,  name, store_name, contact, email, street, city_id, state_id, country_id, zipcode, desc_1, desc_2, discount_id, delivery_status, created_by, modified_by, image, banner, status,  district, insta_link, fb_link)
-                    VALUES ('$user_id', '$name', '$store_name', '$contact', '$email', '$street', '$city_id', '$state_id', '$country_id', '$zipcode', '$desc_1', '$desc_2', '$discount_id', '$delivery_status', '$created_by', '$modified_by', '$image_new_name', '$banner_new_name', '$status', '$district', '$insta_link', '$fb_link')";
+        $query = "INSERT INTO vendor (user_id,  name, store_name, contact, email, city_id, state_id, country_id, zipcode, desc_1, desc_2, discount_id, delivery_status, created_by, modified_by, image, banner, status,  district, insta_link, fb_link, website_link, yt_link, bio)
+                        VALUES ('$user_id', '$name', '$store_name', '$contact', '$email', '$city_id', '$state_id', '$country_id', '$zipcode', '$desc_1', '$desc_2', '$discount_id', '$delivery_status', '$created_by', '$modified_by', '$image_new_name', '$banner_new_name', '$status', '$district', '$insta_link', '$fb_link', '$website_link', '$yt_link', '$bio')";
 
         // Execute query
         if (mysqli_query($conn, $query)) {

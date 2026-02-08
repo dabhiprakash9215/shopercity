@@ -65,11 +65,43 @@
                             $city_id = (int) $_SESSION['city_id'];
                             $conditions[] = "city_id = $city_id";
                         }
-                        $qry = "SELECT id, store_name, city_id, image, discount_id, street FROM vendor WHERE  " . implode(' AND ', $conditions);
+                        $qry = "SELECT id, store_name, city_id, image, discount_id, city_id, state_id, district FROM vendor WHERE  " . implode(' AND ', $conditions);
                         $res = mysqli_query($conn, $qry);
                         if (mysqli_num_rows($res) > 0) {
                             while ($row = mysqli_fetch_assoc($res)) {
                                 $like = "";
+                                // print_r($row['state_id']);
+                                // print_r($row['city_id']);
+                                // print_r($row['district']);
+                                // die;
+                                $qry2 = "SELECT name FROM state WHERE  id=" . $row['state_id'];
+                                $res2 = mysqli_query($conn, $qry2);
+                                $state = mysqli_fetch_assoc($res2);
+                                // print_r($state);
+                                // die;
+
+
+                                $qry3 = "SELECT district_name FROM districts WHERE  id=" . $row['district'];
+                                $res3 = mysqli_query($conn, $qry3);
+                                $district = mysqli_fetch_assoc($res3);
+                                // print_r($district);
+                                // die;
+
+                                $qry4 = "SELECT name FROM city WHERE  id=" . $row['city_id'];
+                                $res4 = mysqli_query($conn, $qry4);
+                                $city = mysqli_fetch_assoc($res4);
+
+
+                                $parts = [];
+                                if (!empty($city['name'])) {
+                                    $parts[] = $city['name'];
+                                }
+                                if (!empty($district['district_name'])) {
+                                    $parts[] = $district['district_name'];
+                                }
+                                if (!empty($state['name'])) {
+                                    $parts[] = $state['name'];
+                                }
                     ?>
 
 
@@ -92,7 +124,7 @@
                                                 </a>
                                             </div>
                                             <a href="single-product.php?shop_id=<?php echo $row['id']; ?>&cat_id=<?php echo $_GET['cat_id']; ?>">
-                                                <i class="d-icon-map-marker"></i> </i> <?php echo $row['street'] . ' ' . $row['city_id']; ?>
+                                                <i class="d-icon-map-marker"></i> </i> <?php echo implode(', ', $parts); ?>
                                             </a>
                                         </div>
                                         <div class="mt-4 bg-[#2266cc] text-white p-2 rounded-lg text-center">
