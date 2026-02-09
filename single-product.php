@@ -36,8 +36,8 @@ if (isset($_GET['cat_id'])) {
 	$qry5 = "SELECT name FROM category WHERE id=$id";
 	$res5 = mysqli_query($conn, $qry5);
 	$row5 = mysqli_fetch_array($res5);
-
-	$qry2 = "SELECT name FROM state WHERE  id=" . $row['state_id'];
+	$state_id = $row['state_id'];
+	$qry2 = "SELECT name FROM state WHERE  state_code='$state_id'";
 	$res2 = mysqli_query($conn, $qry2);
 	$state = mysqli_fetch_assoc($res2);
 	// print_r($state);
