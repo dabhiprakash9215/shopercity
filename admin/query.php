@@ -490,24 +490,24 @@ if (isset($_POST['vendor']) && $_POST['vendor'] == 'Save') {
 }
 if (isset($_POST['vendor']) && $_POST['vendor'] == 'Update') {
 	$city_id = $_POST['city_id'];
-	$youtube_link = $_POST['youtube_link'];
-	$country_id = $_POST['country_id'];
+	// $youtube_link = $_POST['youtube_link'];
+	// $country_id = $_POST['country_id'];
 	$category_id = $_POST['category_id'];
 	$state_id = $_POST['state_id'];
 	$zipcode = $_POST['zipcode'];
 	$store_name = $_POST['store_name'];
 	$email = $_POST['email'];
-	$username = $_POST['username'];
-	$password = $_POST['password'];
-	$street = $_POST['street'];
-	$lat = $_POST['lat'];
-	$long = $_POST['long'];
+	// $username = $_POST['username'];
+	// $password = $_POST['password'];
+	// $street = $_POST['street'];
+	// $lat = $_POST['lat'];
+	// $long = $_POST['long'];
 	$plan_id = $_POST['plan_id'];
 	$contact = $_POST['contact'];
 	$desc_1 = $_POST['desc_1'];
 	$desc_2 = $_POST['desc_2'];
-	$starting_date = $_POST['starting_date'];
-	$end_date = $_POST['end_date'];
+	// $starting_date = $_POST['starting_date'];
+	// $end_date = $_POST['end_date'];
 	$delivery_status = $_POST['delivery_status'];
 	$discount_id = $_POST['discount_id'];
 	$imgFile = $_FILES['image']['name'];
@@ -521,53 +521,66 @@ if (isset($_POST['vendor']) && $_POST['vendor'] == 'Update') {
 	$status	= $_POST['status'];
 	$reason	=	$_POST['reason'];
 	$name = $_POST['name'];
+	$insta_link = $_POST['insta_link'];
+	$yt_link = $_POST['yt_link'];
+	$fb_link = $_POST['fb_link'];
+	$website_link = $_POST['website_link'];
+	$bio = $_POST['bio'];
 	//$update_query=$conn->prepare("UPDATE vendor SET name=:name,country_id=:country_id,state_id=:state_id,city_id=:city_id,contact=:contact,zipcode=:zipcode,store_name=:store_name,email=:email,username=:username,password=:password,street=:street,lat=:lat,longitude=:longitude,plan_id=:plan_id,modified_by=:modified_by,category_id=:category_id,youtube_link=:youtube_link,desc_1:desc_1,desc_2:desc_2,delivery_status:delivery_status WHERE id=:id");
-	$update_query = $conn->prepare("UPDATE vendor SET name=:name,country_id=:country_id,state_id=:state_id,city_id=:city_id,contact=:contact,zipcode=:zipcode,store_name=:store_name,email=:email,username=:username,password=:password,street=:street,lat=:lat,longitude=:longitude,plan_id=:plan_id,modified_by=:modified_by,category_id=:category_id,youtube_link=:youtube_link,desc_1=:desc_1,desc_2=:desc_2,delivery_status=:delivery_status,discount_id=:discount_id, starting_date=:starting_date,end_date=:end_date,status=:status,reason=:reason WHERE id=:id");
-	$update_record = $update_query->execute(array(
-		':name' => $name,
-		':id' => $_POST['id'],
-		':modified_by' => date("Y-m-d H:i:s"),
-		':country_id' => $country_id,
-		':state_id' => $state_id,
-		':city_id' => $city_id,
-		':zipcode' => $zipcode,
-		':store_name' => $store_name,
-		':email' => $email,
-		':contact' => $contact,
-		':username' => $username,
-		':password' => $password,
-		':street' => $street,
-		':lat' => $lat,
-		':longitude' => $long,
-		':plan_id' => $plan_id,
-		':category_id' => $category_id,
-		':youtube_link' => $youtube_link,
-		':desc_1' => $desc_1,
-		':desc_2' => $desc_2,
-		':delivery_status' => $delivery_status,
-		':discount_id' => $discount_id,
-		'starting_date' => $starting_date,
-		'end_date' => $end_date,
-		'status' => $status,
-		'reason' => $reason,
-	));
+	$sql = "
+UPDATE vendor SET
+    name = :name,
+    country_id = :country_id,
+    state_id = :state_id,
+    city_id = :city_id,
+    contact = :contact,
+    zipcode = :zipcode,
+    store_name = :store_name,
+    category_id = :category_id,
+    desc_1 = :desc_1,
+    desc_2 = :desc_2,
+    delivery_status = :delivery_status,
+    discount_id = :discount_id,
+    end_date = :end_date,
+    status = :status,
+    reason = :reason,
+    insta_link = :insta_link,
+    yt_link = :yt_link,
+    fb_link = :fb_link,
+    website_link = :website_link,
+    bio = :bio
+WHERE id = :id
+";
+
+	$stmt = $conn->prepare($sql);
+
+	$stmt->bindParam(':id', $_POST['id']);
+	$stmt->bindParam(':name', $name);
+	$stmt->bindParam(':country_id', $country_id);
+	$stmt->bindParam(':state_id', $state_id);
+	$stmt->bindParam(':city_id', $city_id);
+	$stmt->bindParam(':contact', $contact);
+	$stmt->bindParam(':zipcode', $zipcode);
+	$stmt->bindParam(':store_name', $store_name);
+	$stmt->bindParam(':category_id', $category_id);
+	$stmt->bindParam(':desc_1', $desc_1);
+	$stmt->bindParam(':desc_2', $desc_2);
+	$stmt->bindParam(':delivery_status', $delivery_status);
+	$stmt->bindParam(':discount_id', $discount_id);
+	$stmt->bindParam(':end_date', $end_date);
+	$stmt->bindParam(':status', $status);
+	$stmt->bindParam(':reason', $reason);
+	$stmt->bindParam(':insta_link', $insta_link);
+	$stmt->bindParam(':yt_link', $yt_link);
+	$stmt->bindParam(':fb_link', $fb_link);
+	$stmt->bindParam(':website_link', $website_link);
+	$stmt->bindParam(':bio', $bio);
+
+	$stmt->execute();
+
 	$insert_id = $_POST['id'];
 	$month = $user->getField($plan_id, 'subscription', 'month');
 	$end_date = date('Y-m-d', strtotime("+$month months", strtotime(date("Y-m-d"))));
-	/* Product City Change */
-	$update_query = $conn->prepare("UPDATE product SET city_id=:city_id WHERE vendor_id=:vendor_id");
-	$update_record = $update_query->execute(array(
-		':city_id' => $city_id,
-		':vendor_id' => $insert_id
-	));
-	/* Product City Change */
-	$update_query = $conn->prepare("UPDATE vendor_subscribe SET plan_id=:plan_id,start_date=:start_date,end_date=:end_date  WHERE user_id=:user_id");
-	$update_record = $update_query->execute(array(
-		':user_id' => $insert_id,
-		':plan_id' => $plan_id,
-		':start_date' => date("Y-m-d H:i:s"),
-		':end_date' => $end_date
-	));
 
 	if ($imgFile) {
 		$upload_dir = '../vendor/profile/'; // upload directory
@@ -622,10 +635,8 @@ if (isset($_POST['vendor']) && $_POST['vendor'] == 'Update') {
 			$errMSG = "Sorry, only JPG, JPEG, PNG & GIF files are allowed.";
 		}
 	}
-	if ($update_record) {
-		$_SESSION['ins_msg'] = 'vendor updated successfully';
-		header('location:user.php');
-	}
+	$_SESSION['ins_msg'] = 'vendor updated successfully';
+	header('location:user.php');
 }
 if (isset($_GET['name']) && $_GET['name'] == 'vendor' and $_GET['id'] != '') {
 	$id = $_GET['id'];
