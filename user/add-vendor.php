@@ -102,9 +102,12 @@
 						</div>
 						<div class="col-xl-3 col-lg-4 col-md-6">
 							<label class="form-label">Bio</label>
-							<input type="text" class="form-control form-control-lg" name="bio" value="<?php if (!empty($vendor_row['bio'])) {
-																											echo $vendor_row['bio'];
-																										} ?>">
+							<input type="text" maxlength="30"
+								class="form-control form-control-lg" id="vendor_name" name="bio" oninput="limitWords(this, 100
+							)" value="<?php if (!empty($vendor_row['bio'])) {
+											echo $vendor_row['bio'];
+										} ?>">
+							<small id="vendor_name_help" class="text-danger"></small>
 						</div>
 
 						<div class="col-xl-3 col-lg-4 col-md-6">
@@ -283,6 +286,18 @@
 				$(this).attr('data-bs-toggle', $(this).attr('data-toggle')).removeAttr('data-toggle');
 			});
 		});
+
+		function limitWords(input, maxWords) {
+			let words = input.value.trim().split(/\s+/);
+
+			if (words.length > maxWords) {
+				input.value = words.slice(0, maxWords).join(" ");
+				document.getElementById(input.id + "_help").innerText =
+					"Maximum " + maxWords + " words allowed";
+			} else {
+				document.getElementById(input.id + "_help").innerText = "";
+			}
+		}
 
 		$(document).ready(function() {
 			// Initialize the jQuery Validation Plugin
