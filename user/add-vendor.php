@@ -118,7 +118,7 @@
 								$state_qry = "SELECT * FROM state";
 								$state_res = mysqli_query($conn, $state_qry);
 								while ($row = mysqli_fetch_assoc($state_res)) {
-									echo '<option value="' . $row['state_code'] . '" ' . ($vendor_row['state_id'] == $row['state_code'] ? 'selected' : '') . '>' . $row['name'] . '</option>';
+									echo '<option value="' . $row['state_code'] . '" ' . ($vendor_row['state_id'] == $row['state_code'] ? 'selected="selected"' : '') . '>' . $row['name'] . '</option>';
 								}
 								?>
 							</select>
@@ -128,6 +128,13 @@
 							<label class="form-label">District</label>
 							<select name="district" id="district-select" required class="form-select form-control-lg">
 								<option value="">Select District</option>
+								<?php
+								$dist_qry = "SELECT * FROM districts";
+								$dist_res = mysqli_query($conn, $dist_qry);
+								while ($row = mysqli_fetch_assoc($dist_res)) {
+									echo '<option value="' . $row['id'] . '" ' . ($vendor_row['district'] == $row['id'] ? 'selected="selected"' : '') . '>' . $row['district_name'] . '</option>';
+								}
+								?>
 							</select>
 						</div>
 
@@ -135,6 +142,13 @@
 							<label class="form-label">City</label>
 							<select name="city" id="city-select" required class="form-select form-control-lg">
 								<option value="">Select City</option>
+								<?php
+								$city_qry = "SELECT * FROM city";
+								$city_res = mysqli_query($conn, $city_qry);
+								while ($row = mysqli_fetch_assoc($city_res)) {
+									echo '<option value="' . $row['id'] . '" ' . ($vendor_row['city_id'] == $row['id'] ? 'selected="selected"' : '') . '>' . $row['name'] . '</option>';
+								}
+								?>
 							</select>
 
 						</div>

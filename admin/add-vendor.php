@@ -27,6 +27,11 @@ if (isset($_GET['id']) && $_GET['id'] != '') {
 	$e_date = $user->getField($_GET['id'], 'vendor', 'end_date');
 	$status = $user->getField($_GET['id'], 'vendor', 'status');
 	$reason = $user->getField($_GET['id'], 'vendor', 'reason');
+	$yt_link = $user->getField($_GET['id'], 'vendor', 'yt_link');
+	$insta_link = $user->getField($_GET['id'], 'vendor', 'insta_link');
+	$fb_link = $user->getField($_GET['id'], 'vendor', 'fb_link');
+	$website_link = $user->getField($_GET['id'], 'vendor', 'website_link');
+	$district_id = $user->getField($_GET['id'], 'vendor', 'district');
 	$date = '2024-10-31'; // Original date
 
 	// Create a DateTime object
@@ -66,6 +71,11 @@ if (isset($_GET['id']) && $_GET['id'] != '') {
 	$end_date = date('Y-m-d');
 	$status = 2;
 	$reason	=	"";
+	$yt_link = '';
+	$insta_link = '';
+	$fb_link = '';
+	$website_link = '';
+	$district_id = '';
 }
 ?>
 <!DOCTYPE html>
@@ -172,52 +182,70 @@ if (isset($_GET['id']) && $_GET['id'] != '') {
 											<input required="" data-parsley-trigger="change" type="text" class="form-control" name="bio" placeholder="" value="<?php echo $bio; ?>">
 										</div>
 										<div class="form-group col-md-6">
-											<label for="inputStatus">City</label>
-											<!-- <input type="text" name="city_id" id="" value="<?= $city; ?>" required="" data-parsley-trigger="change" type="text" class="form-control"> -->
-											<select required="" data-parsley-trigger="change" id="inputStatus" name="state_id" class="form-control custom-select">
-												<option value=""> Select State</option>
-												<?php
-												$center = $conn->query("SELECT * FROM state");
-												while ($center_fetch = $center->fetch()) { ?>
-													<option <?php if ($state == $center_fetch['id']) {
-																echo 'selected="selected"';
-															} ?> value="<?php echo $center_fetch['id']; ?>"><?php echo $center_fetch['name']; ?></option>
-												<?php } ?>
-											</select>
-										</div>
-										<div class="form-group col-md-6">
 											<label for="inputStatus">State</label>
 											<select required="" data-parsley-trigger="change" id="inputStatus" name="state_id" class="form-control custom-select">
 												<option value=""> Select State</option>
 												<?php
 												$center = $conn->query("SELECT * FROM state");
 												while ($center_fetch = $center->fetch()) { ?>
-													<option <?php if ($state == $center_fetch['id']) {
+													<option <?php if ($state == $center_fetch['state_code']) {
 																echo 'selected="selected"';
-															} ?> value="<?php echo $center_fetch['id']; ?>"><?php echo $center_fetch['name']; ?></option>
+															} ?> value="<?php echo $center_fetch['state_code']; ?>"><?php echo $center_fetch['name']; ?></option>
 												<?php } ?>
 											</select>
 										</div>
 										<div class="form-group col-md-6">
-											<label for="inputStatus">Country</label>
-											<select required="" data-parsley-trigger="change" id="inputStatus" name="country_id" class="form-control custom-select">
-												<option value=""> Select Country</option>
+											<label for="inputStatus">District</label>
+											<select required="" data-parsley-trigger="change" id="inputStatus" name="district_id" class="form-control custom-select">
+												<option value="">Select District</option>
 												<?php
-												$center = $conn->query("SELECT * FROM country");
+												$center = $conn->query("SELECT * FROM districts");
 												while ($center_fetch = $center->fetch()) { ?>
-													<option <?php if ($country == $center_fetch['id']) {
+													<option <?php if ($district_id == $center_fetch['id']) {
+																echo 'selected="selected"';
+															} ?> value="<?php echo $center_fetch['id']; ?>"><?php echo $center_fetch['district_name']; ?></option>
+												<?php } ?>
+											</select>
+										</div>
+										<div class="form-group col-md-6">
+											<label for="inputStatus">City</label>
+											<!-- <input type="text" name="city_id" id="" value="<?= $city; ?>" required="" data-parsley-trigger="change" type="text" class="form-control"> -->
+											<select required="" data-parsley-trigger="change" id="inputStatus" name="city_id" class="form-control custom-select">
+												<option value=""> Select City</option>
+												<?php
+												$center = $conn->query("SELECT * FROM city");
+												while ($center_fetch = $center->fetch()) { ?>
+													<option <?php if ($city == $center_fetch['id']) {
 																echo 'selected="selected"';
 															} ?> value="<?php echo $center_fetch['id']; ?>"><?php echo $center_fetch['name']; ?></option>
 												<?php } ?>
 											</select>
 										</div>
+
+
 										<div class="form-group col-md-6">
 											<label for="exampleInputEmail1">Zipcode</label>
 											<input required="" data-parsley-trigger="change" type="text" class="form-control" name="zipcode" placeholder="Enter zipcode Name" value="<?php echo $zipcode; ?>">
 										</div>
 										<div class="form-group col-md-6">
 											<label for="exampleInputEmail1">Contact</label>
-											<input required="" data-parsley-trigger="change" type="text" class="form-control" name="contact" placeholder="Enter contact Name" value="<?php echo $contact; ?>">
+											<input type="text" class="form-control" name="contact" placeholder="Enter contact Name" value="<?php echo $contact; ?>">
+										</div>
+										<div class="form-group col-md-6">
+											<label for="exampleInputEmail1">Youtube Link</label>
+											<input type="text" class="form-control" name="yt_link" placeholder="Enter youtube link" value="<?php echo $yt_link; ?>">
+										</div>
+										<div class="form-group col-md-6">
+											<label for="exampleInputEmail1">Instagram Link</label>
+											<input type="text" class="form-control" name="insta_link" placeholder="Enter Instagram Link " value="<?php echo $insta_link; ?>">
+										</div>
+										<div class="form-group col-md-6">
+											<label for="exampleInputEmail1">Facebook Link</label>
+											<input type="text" class="form-control" name="fb_link" placeholder="Enter Facebook" value="<?php echo $fb_link; ?>">
+										</div>
+										<div class="form-group col-md-6">
+											<label for="exampleInputEmail1">Website Link</label>
+											<input type="text" class="form-control" name="website_link" placeholder="Enter Website Link" value="<?php echo $website_link; ?>">
 										</div>
 										<!-- <div class="form-group col-md-6">
 											<label for="exampleInputEmail1">Enter Latitude</label>
@@ -328,7 +356,7 @@ if (isset($_GET['id']) && $_GET['id'] != '') {
 										</div>
 										<div class="form-group col-md-12">
 											<label for="exampleInputEmail1">Reason</label>
-											<textarea required="" data-parsley-trigger="change" class="form-control" name="reason"><?= $reason ?></textarea>
+											<textarea class="form-control" name="reason"><?= $reason ?></textarea>
 										</div>
 										<div class="form-group col-md-6">
 											<label for="exampleInputFile">Upload Banner</label><br>
