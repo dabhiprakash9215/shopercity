@@ -74,7 +74,8 @@
                                 // print_r($row['city_id']);
                                 // print_r($row['district']);
                                 // die;
-                                $qry2 = "SELECT name FROM state WHERE  id=" . $row['state_id'];
+                                $state_code = $row['state_id'];
+                                $qry2 = "SELECT name FROM state WHERE state_code='$state_code'";
                                 $res2 = mysqli_query($conn, $qry2);
                                 $state = mysqli_fetch_assoc($res2);
                                 // print_r($state);
