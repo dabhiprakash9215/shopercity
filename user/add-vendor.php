@@ -181,7 +181,10 @@
 						</div> -->
 						<div class="col-xl-3 col-lg-6 col-sm-6">
 							<label class="form-label">Discount</label>
-							<select class="form-select form-control-lg" name="discount">
+							<input type="text" class="form-control form-control-lg" name="discount" id="discount" value="<?php if (!empty($vendor_row['discount_id'])) {
+																																echo $vendor_row['discount_id'];
+																															} ?>">
+							<!-- <select class="form-select form-control-lg" name="discount">
 								<?php
 								while ($row   =   mysqli_fetch_assoc($discount)) {
 								?>
@@ -191,7 +194,7 @@
 								<?php
 								}
 								?>
-							</select>
+							</select> -->
 						</div>
 						<input type="hidden" class="btn-check" value="1" name="delivery" id="btnradio1">
 
@@ -394,8 +397,7 @@
 					},
 					// Discount (ensure number is not negative)
 					discount: {
-						required: true,
-						min: 0
+						required: true
 					},
 					// Delivery (if checked, must be true)
 					delivery: {
@@ -495,8 +497,7 @@
 						minlength: "Description must be at least 5 characters long"
 					},
 					discount: {
-						required: "Please enter discount",
-						min: "Discount cannot be negative"
+						required: "Please enter discount"
 					},
 					link: {
 						url: "Please enter a valid URL"

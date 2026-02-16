@@ -72,7 +72,7 @@ if ($_GET) {
                                                 </div>
                                             </div>
                                             <button class="btn btn-dark btn-block btn-rounded" type="submit">Login</button>
-                                            <a href="forgot-password.php" class="text-black mt-2" style="font-size: 13px;">Forgot Password?</a>
+                                            <a href="forgot_password.php" class="text-black mt-2" style="font-size: 13px;">Forgot Password?</a>
                                         </form>
                                     </div>
                                     <div class="tab-pane" id="register">
@@ -106,7 +106,7 @@ if ($_GET) {
                                                 </div>
                                             </div>
                                             <button class="btn btn-dark btn-block btn-rounded" name="register" type="submit" onclick="signUp()">Register</button>
-                                            <a href="forgot-password.php" class="text-black mt-2" style="font-size: 13px;">Forgot Password?</a>
+                                            <a href="forgot_password.php" class="text-black mt-2" style="font-size: 13px;">Forgot Password?</a>
                                         </form>
                                     </div>
                                 </div>

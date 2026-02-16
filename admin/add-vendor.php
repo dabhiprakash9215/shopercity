@@ -179,7 +179,7 @@ if (isset($_GET['id']) && $_GET['id'] != '') {
 										</div> -->
 										<div class="form-group col-md-6">
 											<label for="exampleInputEmail1">Bio</label>
-											<input required="" data-parsley-trigger="change" type="text" class="form-control" name="bio" placeholder="" value="<?php echo $bio; ?>">
+											<input required="" data-parsley-trigger="change" maxlength="100" type="text" class="form-control" name="bio" placeholder="" value="<?php echo $bio; ?>">
 										</div>
 										<div class="form-group col-md-6">
 											<label for="inputStatus">State</label>
@@ -270,7 +270,8 @@ if (isset($_GET['id']) && $_GET['id'] != '') {
 										</div>
 										<div class="form-group col-md-6">
 											<label for="category">Discount</label>
-											<select required="" data-parsley-trigger="change" id="category" name="discount_id" class="form-control custom-select">
+											<input type="text" class="form-control" name="discount_id" placeholder="Enter Discount" value="<?php echo $fb_link; ?>">
+											<!-- <select required="" data-parsley-trigger="change" id="category" name="discount_id" class="form-control custom-select" value="<?php echo $discount_id; ?>">
 												<option value=""> Select Descount</option>
 												<?php
 												$center = $conn->query("SELECT * FROM discount");
@@ -279,7 +280,7 @@ if (isset($_GET['id']) && $_GET['id'] != '') {
 																echo 'selected="selected"';
 															} ?> value="<?php echo $center_fetch['id']; ?>"><?php echo $center_fetch['name']; ?></option>
 												<?php } ?>
-											</select>
+											</select> -->
 										</div>
 
 

@@ -65,7 +65,7 @@
                             $city_id = (int) $_SESSION['city_id'];
                             $conditions[] = "city_id = $city_id";
                         }
-                        $qry = "SELECT id, store_name, city_id, image, discount_id, city_id, state_id, district FROM vendor WHERE  " . implode(' AND ', $conditions);
+                        $qry = "SELECT id, store_name, city_id, bio, image, discount_id, city_id, state_id, district FROM vendor WHERE  " . implode(' AND ', $conditions);
                         $res = mysqli_query($conn, $qry);
                         if (mysqli_num_rows($res) > 0) {
                             while ($row = mysqli_fetch_assoc($res)) {
@@ -123,6 +123,11 @@
                                                 <a href="single-product.php?shop_id=<?php echo $row['id']; ?>&cat_id=<?php echo $_GET['cat_id']; ?>">
                                                     <?php echo $row['store_name']; ?>
                                                 </a>
+                                            </div>
+                                            <div class="text-[16px] font-semibold text-black transition-colors duration-200">
+                                                <span>
+                                                    <?php echo $row['bio']; ?>
+                                                </span>
                                             </div>
                                             <a href="single-product.php?shop_id=<?php echo $row['id']; ?>&cat_id=<?php echo $_GET['cat_id']; ?>">
                                                 <i class="d-icon-map-marker"></i> </i> <?php echo implode(', ', $parts); ?>
